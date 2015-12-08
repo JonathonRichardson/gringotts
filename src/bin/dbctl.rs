@@ -10,6 +10,14 @@ fn main() {
     }
 
     let filename = &args[1].clone();
-    let file = gringotts::dbfile::Dbfile::open(filename);
+    let mut file = gringotts::dbfile::Dbfile::open(filename);
     file.read_file();
+
+    let seg = gringotts::dbfile::ReadLocation {
+        start: 3,
+        length: 3,
+        valueType: gringotts::dbfile::ReadLocationType::string
+    };
+
+    let mut return_value = file.read_segment(seg);
 }
