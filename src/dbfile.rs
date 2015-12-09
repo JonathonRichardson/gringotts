@@ -32,14 +32,11 @@ impl Dbfile {
 	    let path = Path::new(&stringPath);
 	    let display = path.display();
 	
-	    // Open the path in read-only mode, returns `io::Result<File>`
-	    let mut file = match File::open(&path) {
-	        // The `description` method of `io::Error` returns a string that
-	        // describes the error
-	        Err(why) => panic!("couldn't open {}: {}", display,
-	                                                   Error::description(&why)),
-	        Ok(file) => file,
-	    };
+        let mut file = OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .create(true)
+                        .open(stringPath).unwrap();
 
         
         Dbfile {
@@ -61,7 +58,7 @@ impl Dbfile {
 	    // `file` goes out of scope, and the "hello.txt" file gets closed
     }
 
-    pub fn read_segment(&mut self, loc: ReadLocation) -> String {
+    pub fn read_segment(&mut self, loc: &ReadLocation) -> String {
         let start: u64 = loc.start as u64;
         let length: usize = loc.length as usize;
         let mut read_value: String = String::new();
@@ -85,6 +82,24 @@ impl Dbfile {
 
         println!("Value is: {}", read_value);
         return read_value;
+    }
+
+    pub fn write_segment(&mut self, loc: &ReadLocation, value: String) {
+        let start: u64 = loc.start as u64;
+        let length: usize = loc.length as usize;
+
+	    let path = Path::new(&self.stringPath);
+	    let display = path.display();
+
+	    match self.file.seek(SeekFrom::Start(start)) {
+	        Err(why) => panic!("couldn't seek on {}: {}", display, Error::description(&why)),
+	        Ok(_) => println!("Successfully seeked to pos: {}", start.to_string()),
+	    }
+
+	    match self.file.write(value.as_bytes()) {
+	        Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
+	        Ok(_) => println!("Successfully wrote value"),
+	    }
     }
 }
 
