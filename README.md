@@ -6,7 +6,7 @@ This is still heavily under construction (both design and implementation) and is
 
 # Goals
 Primary goals include:
-* The database should work equally well in single user (ie embedded) and multi-user modes (like PostGres and most SQL databases).
+* The database should work equally well in single user (ie embedded) and multi-user modes (like Postgres and most SQL databases).
 * The database should be fast.
 * The database codebase should be simple.
  * I want to be able to keep it's structure in my head at one time and be able to teach it in (much) less than day.  Such as over a beer at lunch.
@@ -21,11 +21,11 @@ Primary goals include:
 The plan is for this database to have two layers: an underlying key-value store, and an overlaying object model.  Gringotts refers to the overlaying database, not the key-value store, and my plan is to hide the key-value store implementation from public APIs by v1.
 
 ## Vaults
-At the highest layer, data in Gringotts will be grouped into "vaults".  These vaults are roughly equivalent to "tables" in other databases.  There are two types of vaults, record style, and hierarchial style.  
+At the highest layer, data in Gringotts will be grouped into "vaults".  These vaults are roughly equivalent to "tables" in other databases.  There are two types of vaults, record style, and hierarchical style.  
 
-Hierarchial style vaults are similar to other key-value stores, where there is no overarching schema to the data.  Changes are fully logged with timestamps, and the state of teh database can be found for any given time.  This is usefull for storing data such as settings, which don't change often and don't have a repetative structure.
+Hierarchical style vaults are similar to other key-value stores, where there is no overarching schema to the data.  Changes are fully logged with timestamps, and the state of the database can be found for any given time.  This is useful for storing data such as settings, which don't change often and don't have a repetitive structure.
 
-Record style vaults are more like tradiditonal table based layouts.  A schema will be defined for each record vault, with fields for each record.   Each record will be indexed by at least a machine-generated key, which can be used to uniquely identify a record.
+Record style vaults are more like traditional table based layouts.  A schema will be defined for each record vault, with fields for each record.   Each record will be indexed by at least a machine-generated key, which can be used to uniquely identify a record.
 
 ### Enforcer Scripts
 For each vault, there will be optional enforcer scripts that will able to be written in just about any language.  The enforcer script performs validation on new records and record updates, and can reject records based on their contents.  They should be incredibly flexible, although I don't plan for them to be used extensively, as they can confuse application code. ***This is one of the more dangerous aspects to Gringotts.  Although they can be very useful, I fear that these could be abused very easily.  I may need to think more about their design.***
@@ -59,6 +59,6 @@ _v0.0.1_
 * Failures will just result in a panic.  There will be no intercepting of errors.
 
 _v0.0.2_
-* `dbctl` will be implemented as a binary with the ability to create, verify, and delete dbfiles. 
+* `dbctl` will be implemented as a binary with the ability to create, verify, and delete dbfiles.
 * `kvctl` will now look for environment variable `GRINGOTTS_DBFILE` or use `--dbfile` override to identify which file it is working on.
  * If neither is specified, it will use (and create if necessary) a default file called `//data/default.gdb`.
