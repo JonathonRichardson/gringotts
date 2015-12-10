@@ -2,26 +2,29 @@ extern crate gringotts;
 
 use gringotts::*;
 use std::env;
+use std::path::Path;
 
 fn main() {
     let args: Vec<_> = env::args().collect();
-    if args.len() > 1 {
-        println!("The first argument is {}", args[1]);
+    if args.len() < 3 {
+        panic!("You must supply two arguments, a command and a filename.");
     }
 
-    let filename = &args[1].clone();
-    let mut file = dbfile::Dbfile::open(filename);
-    file.read_file();
+    let command = &args[1].clone();
+    let filename = args[2].clone();
 
-    let seg = &dbfile::ReadLocation {
-        start: 3,
-        length: 3,
-        valueType: dbfile::ReadLocationType::UTF8String
-    };
+    match command.as_ref() {
+        "create" => create_db(filename),
+        "info"   => get_info(filename),
+        _        => panic!("Unrecognized command"),
+    }
+}
 
-    let write_value = "XXX".to_string();
+fn create_db(filename: String) {
+    dbfile::Dbfile::create(&filename);
+    println!("Successfully created database: {}", Path::new(&filename).display());
+}
 
-    file.read_segment(seg);
-    file.write_segment(seg, write_value);
-    file.read_segment(seg);
+fn get_info(filename: String) {
+    let mut file = dbfile::Dbfile::open(&filename);
 }
