@@ -1,15 +1,13 @@
 use std::error::Error;
 use std::io::prelude::*;
-use std::io;
 use std::io::SeekFrom;
-use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::path::Path;
 
 pub enum ReadLocationType {
-    number,
-    string
+    Number,
+    UTF8String
 }
 
 pub struct ReadLocation {
@@ -37,7 +35,7 @@ fn get_magic_string_piece() -> ReadLocation {
     return ReadLocation {
         start: 0,
         length: magic_string.len(),
-        valueType: ReadLocationType::string
+        valueType: ReadLocationType::UTF8String
     };
 }
 
@@ -60,12 +58,12 @@ impl Dbfile {
         }
     }
 
-    pub fn open(stringPath: &String) -> Dbfile {
+    pub fn open(string_path: &String) -> Dbfile {
 	    // Create a path to the desired file
-	    let path = Path::new(&stringPath);
+	    let path = Path::new(&string_path);
 	    let display = path.display();
 
-        let mut file = OpenOptions::new().read(true).write(true).open(stringPath).unwrap();
+        let mut file = OpenOptions::new().read(true).write(true).open(string_path).unwrap();
 
         let magic_string = get_magic_string();
         let mut buffer = vec![0; magic_string.len()];
@@ -84,7 +82,7 @@ impl Dbfile {
 
         Dbfile {
             file: file,
-            stringPath: stringPath.clone()
+            stringPath: string_path.clone()
         }
     }
 
