@@ -7,13 +7,30 @@ use std::path::Path;
 
 pub enum ReadLocationType {
     Number,
-    UTF8String
+    UTF8String,
+    ByteSequence
 }
 
 pub struct ReadLocation {
     pub start: u8,
     pub length: usize,
     pub valueType: ReadLocationType
+}
+
+pub enum Locations {
+    MagicString
+}
+
+impl Locations {
+    fn get_read_location(&self) -> ReadLocation {
+        match *self {
+            Locations::MagicString => ReadLocation {
+                start: 0,
+                length: get_magic_string().len(),
+                valueType: ReadLocationType::UTF8String
+            }
+        }
+    }
 }
 
 pub struct Dbfile {
@@ -27,16 +44,6 @@ trait HeaderData {
 
 fn get_magic_string() -> String {
     return "GringottsDBFile - https://github.com/JonathonRichardson/gringotts".to_string();
-}
-
-fn get_magic_string_piece() -> ReadLocation {
-    // Define a "Magic String" that IDs a Gringott's dbfile.
-    let magic_string = get_magic_string();
-    return ReadLocation {
-        start: 0,
-        length: magic_string.len(),
-        valueType: ReadLocationType::UTF8String
-    };
 }
 
 impl Dbfile {
@@ -99,7 +106,8 @@ impl Dbfile {
 	    // `file` goes out of scope, and the "hello.txt" file gets closed
     }
 
-    pub fn read_segment(&mut self, loc: &ReadLocation) -> String {
+    pub fn read_segment(&mut self, loc: &Locations) -> String {
+        let loc = loc.get_read_location();
         let start: u64 = loc.start as u64;
         let length: usize = loc.length as usize;
         let mut read_value: String = String::new();
@@ -125,7 +133,8 @@ impl Dbfile {
         return read_value;
     }
 
-    pub fn write_segment(&mut self, loc: &ReadLocation, value: String) {
+    pub fn write_segment(&mut self, loc: &Locations, value: String) {
+        let loc = loc.get_read_location();
         let start: u64 = loc.start as u64;
         let length: usize = loc.length as usize;
 
