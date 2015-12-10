@@ -2,6 +2,7 @@ use std::error::Error;
 use std::io::prelude::*;
 use std::io;
 use std::io::SeekFrom;
+use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::path::Path;
@@ -13,7 +14,7 @@ pub enum ReadLocationType {
 
 pub struct ReadLocation {
     pub start: u8,
-    pub length: u8,
+    pub length: usize,
     pub valueType: ReadLocationType
 }
 
@@ -26,19 +27,61 @@ trait HeaderData {
     fn get_version() -> u16;
 }
 
+fn get_magic_string() -> String {
+    return "GringottsDBFile - https://github.com/JonathonRichardson/gringotts".to_string();
+}
+
+fn get_magic_string_piece() -> ReadLocation {
+    // Define a "Magic String" that IDs a Gringott's dbfile.
+    let magic_string = get_magic_string();
+    return ReadLocation {
+        start: 0,
+        length: magic_string.len(),
+        valueType: ReadLocationType::string
+    };
+}
+
 impl Dbfile {
+    pub fn create(string_path: &String) -> Dbfile {
+        // Create a path to the desired file
+	    let path = Path::new(&string_path);
+	    let display = path.display();
+
+        let mut file = OpenOptions::new().read(true).write(true).create(true).open(string_path).unwrap();
+
+        match file.write(get_magic_string().as_bytes()) {
+            Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
+            Ok(_) => println!("Successfully wrote value"),
+        }
+
+        Dbfile {
+            file: file,
+            stringPath: string_path.clone()
+        }
+    }
+
     pub fn open(stringPath: &String) -> Dbfile {
 	    // Create a path to the desired file
 	    let path = Path::new(&stringPath);
 	    let display = path.display();
-	
-        let mut file = OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .create(true)
-                        .open(stringPath).unwrap();
 
-        
+        let mut file = OpenOptions::new().read(true).write(true).open(stringPath).unwrap();
+
+        let magic_string = get_magic_string();
+        let mut buffer = vec![0; magic_string.len()];
+
+        let invalid_file = || panic!("{} is not a valid Gringotts database.", display);
+
+        match file.read(&mut buffer) {
+            Err(why) => panic!("Couldn't read {}: {}", display, Error::description(&why)),
+            Ok(size) if size < magic_string.len() => invalid_file(),
+            Ok(_) => {},
+        }
+
+        if (String::from_utf8(buffer).unwrap() != magic_string) {
+            invalid_file();
+        }
+
         Dbfile {
             file: file,
             stringPath: stringPath.clone()
@@ -54,7 +97,7 @@ impl Dbfile {
 	        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
 	        Ok(_) => print!("{} contains:\n{}", display, s),
 	    }
-	
+
 	    // `file` goes out of scope, and the "hello.txt" file gets closed
     }
 
