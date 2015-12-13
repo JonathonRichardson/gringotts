@@ -17,8 +17,24 @@ pub struct ReadLocation {
     pub valueType: ReadLocationType
 }
 
+pub struct ReadResult {
+    valueType: ReadLocationType,
+    value: Vec<u8>
+}
+
+impl ReadResult {
+    fn get_string(&mut self) -> String {
+        match self.valueType {
+            ReadLocationType::UTF8String => String::from_utf8(self.value.clone()).unwrap(),
+            _ => panic!("Tried to get a string off of a non-string value"),
+
+        }
+    }
+}
+
 pub enum Locations {
-    MagicString
+    MagicString,
+    Version
 }
 
 impl Locations {
@@ -28,7 +44,12 @@ impl Locations {
                 start: 0,
                 length: get_magic_string().len(),
                 valueType: ReadLocationType::UTF8String
-            }
+            },
+            Locations::Version => ReadLocation {
+                start: 100,
+                length: 6,
+                valueType: ReadLocationType::ByteSequence
+            },
         }
     }
 }
@@ -106,7 +127,7 @@ impl Dbfile {
 	    // `file` goes out of scope, and the "hello.txt" file gets closed
     }
 
-    pub fn read_segment(&mut self, loc: &Locations) -> String {
+    pub fn read_segment(&mut self, loc: &Locations) -> ReadResult {
         let loc = loc.get_read_location();
         let start: u64 = loc.start as u64;
         let length: usize = loc.length as usize;
@@ -127,10 +148,10 @@ impl Dbfile {
 	        Ok(_) => println!("Successfully read value"),
 	    }
 
-        read_value = String::from_utf8(buffer).unwrap();
-
-        println!("Value is: {}", read_value);
-        return read_value;
+        ReadResult {
+            value: buffer,
+            valueType: loc.valueType
+        }
     }
 
     pub fn write_segment(&mut self, loc: &Locations, value: String) {
