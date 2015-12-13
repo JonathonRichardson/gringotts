@@ -10,6 +10,20 @@ pub struct Version {
     build: u16
 }
 
+impl Version {
+    pub fn from_bytes(bytes: &Vec<u8>) -> Version {
+        if (bytes.len() != 6) {
+            panic!("Version Strings should be 8bytes long.")
+        }
+
+        return Version {
+            major: (bytes[0] as u16) | ((bytes[1] as u16) << 8),
+            minor: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
+            build: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
+        }
+    }
+}
+
 impl PartialEq<Version> for Version {
     fn eq(&self, other: &Version) -> bool {
         // Check in reverse order, since that's more likely to differ
