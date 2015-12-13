@@ -57,7 +57,7 @@ impl Locations {
 
 pub struct Dbfile {
     file: File,
-    stringPath: String
+    string_path: String
 }
 
 trait HeaderData {
@@ -83,7 +83,7 @@ impl Dbfile {
 
         Dbfile {
             file: file,
-            stringPath: string_path.clone()
+            string_path: string_path.clone()
         }
     }
 
@@ -111,14 +111,14 @@ impl Dbfile {
 
         Dbfile {
             file: file,
-            stringPath: string_path.clone()
+            string_path: string_path.clone()
         }
     }
 
     pub fn read_file(&mut self) {
 	    // Read the file contents into a string, returns `io::Result<usize>`
 	    let mut s = String::new();
-	    let path = Path::new(&self.stringPath);
+	    let path = Path::new(&self.string_path);
 	    let display = path.display();
 	    match self.file.read_to_string(&mut s) {
 	        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
@@ -134,7 +134,7 @@ impl Dbfile {
         let length: usize = loc.length as usize;
         let mut read_value: String = String::new();
 
-	    let path = Path::new(&self.stringPath);
+	    let path = Path::new(&self.string_path);
 	    let display = path.display();
 
 	    match self.file.seek(SeekFrom::Start(start)) {
@@ -160,7 +160,7 @@ impl Dbfile {
         let start: u64 = loc.start as u64;
         let length: usize = loc.length as usize;
 
-	    let path = Path::new(&self.stringPath);
+	    let path = Path::new(&self.string_path);
 	    let display = path.display();
 
 	    match self.file.seek(SeekFrom::Start(start)) {
