@@ -4,6 +4,7 @@ use std::io::SeekFrom;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::path::Path;
+use version::*;
 
 pub enum ReadLocationType {
     Number,
