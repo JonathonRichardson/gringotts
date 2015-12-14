@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 use std::cmp::PartialEq;
 use std::cmp::PartialOrd;
+use std::mem;
 
 pub struct Version {
     major: u16,
@@ -21,6 +22,20 @@ impl Version {
             minor: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
             build: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
         }
+    }
+
+    pub fn to_bytes(&self) -> [u8; 6] {
+        let major_bytes: [u8; 2];
+        let minor_bytes: [u8; 2];
+        let build_bytes: [u8; 2];
+
+        unsafe {
+            major_bytes = mem::transmute::<u16, [u8;2]>(self.major.clone());
+            minor_bytes = mem::transmute::<u16, [u8;2]>(self.minor.clone());
+            build_bytes = mem::transmute::<u16, [u8;2]>(self.build.clone());
+        }
+
+        return [major_bytes[0], major_bytes[1], minor_bytes[0], minor_bytes[1], build_bytes[0], build_bytes[1]];
     }
 }
 
