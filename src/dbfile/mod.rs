@@ -60,6 +60,12 @@ pub struct Dbfile {
     string_path: String
 }
 
+const CurrentDBVersion:Version = Version {
+    major: 0,
+    minor: 0,
+    build: 1,
+};
+
 trait HeaderData {
     fn get_version() -> u16;
 }

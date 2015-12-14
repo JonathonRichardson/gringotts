@@ -6,9 +6,9 @@ use std::cmp::PartialOrd;
 use std::mem;
 
 pub struct Version {
-    major: u16,
-    minor: u16,
-    build: u16
+    pub major: u16,
+    pub minor: u16,
+    pub build: u16
 }
 
 impl Version {
