@@ -15,17 +15,17 @@ pub enum ReadLocationType {
 pub struct ReadLocation {
     pub start: u8,
     pub length: usize,
-    pub valueType: ReadLocationType
+    pub value_type: ReadLocationType
 }
 
 pub struct ReadResult {
-    valueType: ReadLocationType,
+    value_type: ReadLocationType,
     value: Vec<u8>
 }
 
 impl ReadResult {
     fn get_string(&mut self) -> String {
-        match self.valueType {
+        match self.value_type {
             ReadLocationType::UTF8String => String::from_utf8(self.value.clone()).unwrap(),
             _ => panic!("Tried to get a string off of a non-string value"),
 
@@ -44,12 +44,12 @@ impl Locations {
             Locations::MagicString => ReadLocation {
                 start: 0,
                 length: get_magic_string().len(),
-                valueType: ReadLocationType::UTF8String
+                value_type: ReadLocationType::UTF8String
             },
             Locations::Version => ReadLocation {
                 start: 100,
                 length: 6,
-                valueType: ReadLocationType::ByteSequence
+                value_type: ReadLocationType::ByteSequence
             },
         }
     }
@@ -151,7 +151,7 @@ impl Dbfile {
 
         ReadResult {
             value: buffer,
-            valueType: loc.valueType
+            value_type: loc.value_type
         }
     }
 
