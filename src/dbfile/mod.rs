@@ -1,3 +1,5 @@
+#![allow(unused_parens)]
+
 use std::error::Error;
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -24,11 +26,16 @@ pub struct ReadResult {
 }
 
 impl ReadResult {
-    fn get_string(&mut self) -> String {
+    pub fn get_string(&mut self) -> String {
         match self.value_type {
             ReadLocationType::UTF8String => String::from_utf8(self.value.clone()).unwrap(),
             _ => panic!("Tried to get a string off of a non-string value"),
-
+        }
+    }
+    pub fn get_version(&mut self) -> Version {
+        match self.value_type {
+            ReadLocationType::ByteSequence => Version::from_bytes(self.value.clone()),
+            _ => panic!("Tried to get a string off of a non-byte sequence value"),
         }
     }
 }
@@ -60,7 +67,7 @@ pub struct Dbfile {
     string_path: String
 }
 
-const CurrentDBVersion:Version = Version {
+const CURRENT_DB_VERSION: Version = Version {
     major: 0,
     minor: 0,
     build: 1,
@@ -87,10 +94,14 @@ impl Dbfile {
             Ok(_) => println!("Successfully wrote value"),
         }
 
-        Dbfile {
+        let mut dbfile = Dbfile {
             file: file,
             string_path: string_path.clone()
-        }
+        };
+
+        dbfile.write_segment(Locations::Version, CURRENT_DB_VERSION.to_bytes());
+
+        return dbfile;
     }
 
     pub fn open(string_path: &String) -> Dbfile {
@@ -134,11 +145,10 @@ impl Dbfile {
 	    // `file` goes out of scope, and the "hello.txt" file gets closed
     }
 
-    pub fn read_segment(&mut self, loc: &Locations) -> ReadResult {
+    pub fn read_segment(&mut self, loc: Locations) -> ReadResult {
         let loc = loc.get_read_location();
         let start: u64 = loc.start as u64;
         let length: usize = loc.length as usize;
-        let mut read_value: String = String::new();
 
 	    let path = Path::new(&self.string_path);
 	    let display = path.display();
@@ -161,10 +171,23 @@ impl Dbfile {
         }
     }
 
-    pub fn write_segment(&mut self, loc: &Locations, value: String) {
+    pub fn write_segment(&mut self, loc: Locations, value: Vec<u8>) {
         let loc = loc.get_read_location();
         let start: u64 = loc.start as u64;
         let length: usize = loc.length as usize;
+
+
+        let mut value_to_write: Vec<u8> = Vec::new();
+        while (value_to_write.len() < length) {
+            let current_index = value_to_write.len();
+
+            if (current_index >= value.len() + 1) {
+                value_to_write.push(value[current_index]);
+            }
+            else {
+                value_to_write.push(0);
+            }
+        }
 
 	    let path = Path::new(&self.string_path);
 	    let display = path.display();
@@ -174,7 +197,7 @@ impl Dbfile {
 	        Ok(_) => println!("Successfully seeked to pos: {}", start.to_string()),
 	    }
 
-	    match self.file.write(value.as_bytes()) {
+	    match self.file.write(&value_to_write) {
 	        Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
 	        Ok(_) => println!("Successfully wrote value"),
 	    }

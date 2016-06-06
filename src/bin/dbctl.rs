@@ -27,4 +27,10 @@ fn create_db(filename: String) {
 
 fn get_info(filename: String) {
     let mut file = dbfile::Dbfile::open(&filename);
+    let mut result = file.read_segment(dbfile::Locations::Version);
+
+    println!("Filename: {}", filename);
+
+    let version = result.get_version();
+    println!("Version: {}.{}.{}", version.major, version.minor, version.build);
 }

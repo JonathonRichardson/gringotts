@@ -12,7 +12,7 @@ pub struct Version {
 }
 
 impl Version {
-    pub fn from_bytes(bytes: &Vec<u8>) -> Version {
+    pub fn from_bytes(bytes: Vec<u8>) -> Version {
         if (bytes.len() != 6) {
             panic!("Version Strings should be 8bytes long.")
         }
@@ -24,7 +24,7 @@ impl Version {
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 6] {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let major_bytes: [u8; 2];
         let minor_bytes: [u8; 2];
         let build_bytes: [u8; 2];
@@ -35,7 +35,11 @@ impl Version {
             build_bytes = mem::transmute::<u16, [u8;2]>(self.build.clone());
         }
 
-        return [major_bytes[0], major_bytes[1], minor_bytes[0], minor_bytes[1], build_bytes[0], build_bytes[1]];
+        let vec = vec![major_bytes[0], major_bytes[1],
+                       minor_bytes[0], minor_bytes[1],
+                       build_bytes[0], build_bytes[1]];
+
+        return vec;
     }
 }
 
