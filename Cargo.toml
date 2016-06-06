@@ -2,3 +2,7 @@
 name = "gringotts"
 version = "0.1.0"
 authors = ["jon <jonathon.m.richardson@gmail.com>"]
+
+[dependencies]
+log = "*"
+env_logger = "*"

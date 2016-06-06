@@ -1,5 +1,3 @@
-#![allow(unused_parens)]
-
 use std::error::Error;
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -91,7 +89,7 @@ impl Dbfile {
 
         match file.write(get_magic_string().as_bytes()) {
             Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
-            Ok(_) => println!("Successfully wrote value"),
+            Ok(_) => debug!("Successfully wrote value"),
         }
 
         let mut dbfile = Dbfile {
@@ -155,14 +153,14 @@ impl Dbfile {
 
 	    match self.file.seek(SeekFrom::Start(start)) {
 	        Err(why) => panic!("couldn't seek on {}: {}", display, Error::description(&why)),
-	        Ok(_) => println!("Successfully seeked to pos: {}", start.to_string()),
+	        Ok(_) => debug!("Successfully seeked to pos: {}", start.to_string()),
 	    }
 
         let mut buffer = vec![0; length];
 
 	    match self.file.read(&mut buffer) {
 	        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
-	        Ok(_) => println!("Successfully read value"),
+	        Ok(_) => debug!("Successfully read value"),
 	    }
 
         ReadResult {
@@ -194,12 +192,12 @@ impl Dbfile {
 
 	    match self.file.seek(SeekFrom::Start(start)) {
 	        Err(why) => panic!("couldn't seek on {}: {}", display, Error::description(&why)),
-	        Ok(_) => println!("Successfully seeked to pos: {}", start.to_string()),
+	        Ok(_) => debug!("Successfully seeked to pos: {}", start.to_string()),
 	    }
 
 	    match self.file.write(&value_to_write) {
 	        Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
-	        Ok(_) => println!("Successfully wrote value"),
+	        Ok(_) => debug!("Successfully wrote value"),
 	    }
     }
 }

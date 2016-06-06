@@ -1,3 +1,4 @@
+extern crate env_logger;
 extern crate gringotts;
 
 use gringotts::*;
@@ -5,6 +6,9 @@ use std::env;
 use std::path::Path;
 
 fn main() {
+    // Initialize the environment logger;
+    env_logger::init().unwrap();
+
     let args: Vec<_> = env::args().collect();
     if args.len() < 3 {
         panic!("You must supply two arguments, a command and a filename.");
