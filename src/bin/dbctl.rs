@@ -37,4 +37,6 @@ fn get_info(filename: String) {
 
     let version = result.get_version();
     println!("Version: {}.{}.{}", version.major, version.minor, version.build);
+    println!("Block Size: {}kb", file.get_block_size());
+    println!("Number of Blocks: {}", file.get_number_of_blocks());
 }

@@ -1,8 +1,10 @@
+use abomonation::{encode, decode};
 use std::error::Error;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::mem;
 use std::path::Path;
 use version::*;
 
@@ -30,17 +32,24 @@ impl ReadResult {
             _ => panic!("Tried to get a string off of a non-string value"),
         }
     }
+
     pub fn get_version(&mut self) -> Version {
         match self.value_type {
             ReadLocationType::ByteSequence => Version::from_bytes(self.value.clone()),
             _ => panic!("Tried to get a string off of a non-byte sequence value"),
         }
     }
+
+    pub fn get_bytes(&mut self) -> Vec<u8> {
+        return self.value.clone();
+    }
 }
 
 pub enum Locations {
     MagicString,
-    Version
+    Version,
+    BlockSize,
+    NumBlocks
 }
 
 impl Locations {
@@ -56,6 +65,16 @@ impl Locations {
                 length: 6,
                 value_type: ReadLocationType::ByteSequence
             },
+            Locations::BlockSize => ReadLocation {
+                start: 106,
+                length: 1,
+                value_type: ReadLocationType::ByteSequence
+            },
+            Locations::NumBlocks => ReadLocation {
+                start: 110,
+                length: 8,
+                value_type: ReadLocationType::ByteSequence
+            }
         }
     }
 }
@@ -71,9 +90,7 @@ const CURRENT_DB_VERSION: Version = Version {
     build: 1,
 };
 
-trait HeaderData {
-    fn get_version() -> u16;
-}
+const DEFAULT_BLOCK_SIZE: u8 = 4;
 
 fn get_magic_string() -> String {
     return "GringottsDBFile - https://github.com/JonathonRichardson/gringotts".to_string();
@@ -98,6 +115,8 @@ impl Dbfile {
         };
 
         dbfile.write_segment(Locations::Version, CURRENT_DB_VERSION.to_bytes());
+        dbfile.set_block_size(DEFAULT_BLOCK_SIZE);
+        dbfile.set_number_of_blocks(260);
 
         return dbfile;
     }
@@ -160,7 +179,7 @@ impl Dbfile {
 
 	    match self.file.read(&mut buffer) {
 	        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
-	        Ok(_) => debug!("Successfully read value"),
+	        Ok(_) => debug!("Successfully read value: {:?}", buffer),
 	    }
 
         ReadResult {
@@ -179,7 +198,7 @@ impl Dbfile {
         while (value_to_write.len() < length) {
             let current_index = value_to_write.len();
 
-            if (current_index >= value.len() + 1) {
+            if (current_index <= value.len() - 1) {
                 value_to_write.push(value[current_index]);
             }
             else {
@@ -197,14 +216,44 @@ impl Dbfile {
 
 	    match self.file.write(&value_to_write) {
 	        Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
-	        Ok(_) => debug!("Successfully wrote value"),
+	        Ok(_) => debug!("Successfully wrote value: {:?}", value_to_write),
 	    }
     }
-}
 
+    pub fn get_block_size(&mut self) -> u8 {
+        let mut result = self.read_segment(Locations::BlockSize);
+        let bytes: Vec<u8> = result.get_bytes();
 
-impl HeaderData for Dbfile {
-    fn get_version() -> u16 {
-        return 0;
+        //let Some((result, remaining)) = unsafe { decode::<(u64, String)>(&mut bytes) };
+
+        let array: u8 = unsafe { mem::transmute(bytes[0]) };
+        return array;
+    }
+
+    pub fn get_number_of_blocks(&mut self) -> u64 {
+        let mut read_result = self.read_segment(Locations::NumBlocks);
+        let mut bytes: Vec<u8> = read_result.get_bytes();
+
+        if let Some(result) = unsafe { decode::<u64>(&mut bytes) } {
+            return result.0.clone();
+        }
+        else {
+            return 0;
+        }
+    }
+
+    fn set_number_of_blocks(&mut self, number: u64) {
+        debug!("Setting number of blocks to: {}", number);
+        let mut bytes = Vec::new();
+        unsafe { encode(&number, &mut bytes); }
+
+        //let bytes: [u8; 8] = unsafe { mem::transmute(number) };
+        debug!("Setting number of blocks to: {:?}", bytes);
+        self.write_segment(Locations::NumBlocks, bytes.to_vec());
+    }
+
+    fn set_block_size(&mut self, size: u8) {
+        let bytes = vec!(size);
+        self.write_segment(Locations::BlockSize, bytes);
     }
 }

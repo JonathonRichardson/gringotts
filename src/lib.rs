@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+extern crate abomonation;
 
 pub mod dbfile;
 pub mod version;
