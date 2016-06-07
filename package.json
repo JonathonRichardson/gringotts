@@ -1,0 +1,27 @@
+{
+  "name": "gringotts",
+  "version": "1.0.0",
+  "description": "A database written in Rust.",
+  "main": "target/debug/dbtcl",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "gulp test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JonathonRichardson/gringotts.git"
+  },
+  "author": "Jon Richardson",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/JonathonRichardson/gringotts/issues"
+  },
+  "homepage": "https://github.com/JonathonRichardson/gringotts#readme",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-jasmine": "^2.3.0",
+    "jasmine-console-reporter": "^1.2.6"
+  }
+}
