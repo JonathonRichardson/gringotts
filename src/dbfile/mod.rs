@@ -269,7 +269,7 @@ impl Dbfile {
         return Block::from_bytes(block_number, buffer);
     }
 
-    pub fn write_block(&mut self, block: Block) {
+    pub fn write_block(&mut self, block: &Block) {
         let block_size_in_bytes = (self.get_block_size() as u64) * 1024;
         let start_pos = ((block.blocknumber - 1) * block_size_in_bytes) + START_OF_BLOCKS;
 
@@ -287,16 +287,14 @@ impl Dbfile {
         }
     }
 
-    /*
     fn new_block(&mut self) -> Block {
-        let mut block = Block::new_block(self.get_number_of_blocks() + 1, self.get_block_size());
+        let block = Block::new_block(self.get_number_of_blocks() + 1, self.get_block_size());
 
         self.set_number_of_blocks(block.blocknumber);
-        self.write_block(block);
+        self.write_block(&block);
 
         return block;
     }
-    */
 
     fn set_number_of_blocks(&mut self, number: u64) {
         debug!("Setting number of blocks to: {}", number);
