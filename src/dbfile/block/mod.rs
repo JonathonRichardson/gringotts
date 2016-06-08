@@ -8,42 +8,51 @@ pub struct Block {
     pub blocknumber: u64
 }
 
-enum Section {
+pub trait HasSectionAddress {
+    fn get_start_and_end(&self) -> [u64; 2];
+}
+
+enum CommonSection {
     Body,
     BodySize
 }
 
-impl Section {
-    fn get_range(&self) -> [u64; 2] {
+impl HasSectionAddress for CommonSection {
+    fn get_start_and_end(&self) -> [u64; 2] {
         match *self {
-            Section::Body => [256,0],
-            Section::BodySize => [0,4]
+            CommonSection::Body => [256,0],
+            CommonSection::BodySize => [0,4]
         }
     }
 }
 
-impl Block {
-    pub fn new_block(blocksequencenumber: u64, block_size: u8) -> Block {
-        let size: usize = ((block_size as u64) * 1024) as usize;
+pub trait SerializeableBlock {
+    fn deserialize(block_number: u64, bytes_vec: Vec<u8>)  -> Block;
+    fn serialize(&self) -> Vec<u8>;
+}
+
+impl SerializeableBlock for Block {
+    fn deserialize(block_number: u64, bytes_vec: Vec<u8>) -> Block {
         return Block {
-            bytes: Vec::with_capacity(size),
-            blocknumber: blocksequencenumber
+            bytes: bytes_vec.clone(),
+            blocknumber: block_number
         }
     }
 
-    pub fn from_bytes(blocksequencenumber: u64, bytes_vec: Vec<u8>) -> Block {
-        return Block {
-            bytes: bytes_vec,
-            blocknumber: blocksequencenumber
-        }
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
+    fn serialize(&self) -> Vec<u8> {
         return self.bytes.clone();
     }
+}
 
-    fn read_section(&self, section: Section) -> Vec<u8> {
-        let range = section.get_range();
+trait DBBlock {
+    fn read_section<T>(&self, section: T) -> Vec<u8> where T: HasSectionAddress;
+    fn write_section<T>(&mut self, section: T, bytes: Vec<u8>) where T: HasSectionAddress;
+    fn body_length(&self) -> u32;
+}
+
+impl DBBlock for Block {
+    fn read_section<T>(&self, section: T) -> Vec<u8> where T: HasSectionAddress{
+        let range = section.get_start_and_end();
         let mut results: Vec<u8> = Vec::new();
 
         let start = range[0];
@@ -60,8 +69,27 @@ impl Block {
         return results;
     }
 
-    pub fn body_length(&self) -> u32 {
-        let mut bytes = self.read_section(Section::BodySize);
+    fn write_section<T>(&mut self, section: T, bytes: Vec<u8>) where T: HasSectionAddress {
+        let range = section.get_start_and_end();
+        let start = range[0];
+        let end = match range[1] {
+            // For the body, we'll indicate End of Block by "0".
+            0 => (self.body_length() as u64) + start,
+            _ => range[1],
+        };
+
+        for i in start..end {
+            if (i > ((bytes.len() as u64) + 1)) {
+                self.bytes[i as usize] = 0;
+            }
+            else {
+                self.bytes[i as usize] = bytes[i as usize];
+            }
+        }
+    }
+
+    fn body_length(&self) -> u32 {
+        let mut bytes = self.read_section(CommonSection::BodySize);
         if let Some(result) = unsafe { decode::<u32>(&mut bytes) } {
             return result.0.clone();
         }
@@ -69,4 +97,8 @@ impl Block {
             return 0;
         }
     }
+}
+
+pub struct HeaderBlock {
+    block: Block
 }

@@ -266,7 +266,7 @@ impl Dbfile {
 	        Ok(_) => debug!("Successfully read block: {}", block_number),
 	    }
 
-        return Block::from_bytes(block_number, buffer);
+        return Block::deserialize(block_number, buffer);
     }
 
     pub fn write_block(&mut self, block: &Block) {
@@ -281,16 +281,22 @@ impl Dbfile {
 	        Ok(_) => debug!("Successfully seeked to pos: {}", start_pos.to_string()),
 	    }
 
-        match self.file.write(&block.to_bytes()) {
+        match self.file.write(&block.serialize()) {
         	Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
 	        Ok(_) => debug!("Successfully wrote block: {}", block.blocknumber),
         }
     }
 
     fn new_block(&mut self) -> Block {
-        let block = Block::new_block(self.get_number_of_blocks() + 1, self.get_block_size());
+        let bytes = Vec::with_capacity(self.get_block_size() as usize);
 
-        self.set_number_of_blocks(block.blocknumber);
+        let old_num_blocks = self.get_number_of_blocks();
+        let new_num_blocks = old_num_blocks + 1;
+
+        // Create the new block
+        let block = Block::deserialize(new_num_blocks, bytes);
+
+        self.set_number_of_blocks(new_num_blocks);
         self.write_block(&block);
 
         return block;
