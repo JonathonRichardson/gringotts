@@ -145,8 +145,12 @@ impl DBBlock for Block {
     }
 }
 
-impl Block {
-    pub fn set_block_type(&mut self, block_type: BlockType) {
+pub trait BasicBlock : SerializeableBlock {
+    fn set_block_type(&mut self, block_type: BlockType);
+}
+
+impl BasicBlock for Block {
+    fn set_block_type(&mut self, block_type: BlockType) {
         let code: u32 = block_type.get_code();
 
         let mut bytes = Vec::new();
