@@ -8,6 +8,9 @@ use std::mem;
 use std::path::Path;
 use version::*;
 
+pub mod block;
+use dbfile::block::*;
+
 pub enum ReadLocationType {
     Number,
     UTF8String,
@@ -44,6 +47,8 @@ impl ReadResult {
         return self.value.clone();
     }
 }
+
+const START_OF_BLOCKS: u64 = 256;
 
 pub enum Locations {
     MagicString,
@@ -116,7 +121,7 @@ impl Dbfile {
 
         dbfile.write_segment(Locations::Version, CURRENT_DB_VERSION.to_bytes());
         dbfile.set_block_size(DEFAULT_BLOCK_SIZE);
-        dbfile.set_number_of_blocks(260);
+        dbfile.set_number_of_blocks(1);
 
         return dbfile;
     }
@@ -241,6 +246,57 @@ impl Dbfile {
             return 0;
         }
     }
+
+    pub fn get_block(&mut self, block_number: u64) -> Block {
+        let block_size_in_bytes = (self.get_block_size() as u64) * 1024;
+        let start_pos = ((block_number - 1) * block_size_in_bytes) + START_OF_BLOCKS;
+
+        let path = Path::new(&self.string_path);
+	    let display = path.display();
+
+        match self.file.seek(SeekFrom::Start(start_pos)) {
+	        Err(why) => panic!("couldn't seek on {}: {}", display, Error::description(&why)),
+	        Ok(_) => debug!("Successfully seeked to pos: {}", start_pos.to_string()),
+	    }
+
+        let mut buffer = Vec::with_capacity(block_size_in_bytes as usize);
+
+	    match self.file.read(&mut buffer) {
+	        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
+	        Ok(_) => debug!("Successfully read block: {}", block_number),
+	    }
+
+        return Block::from_bytes(block_number, buffer);
+    }
+
+    pub fn write_block(&mut self, block: Block) {
+        let block_size_in_bytes = (self.get_block_size() as u64) * 1024;
+        let start_pos = ((block.blocknumber - 1) * block_size_in_bytes) + START_OF_BLOCKS;
+
+        let path = Path::new(&self.string_path);
+	    let display = path.display();
+
+        match self.file.seek(SeekFrom::Start(start_pos)) {
+	        Err(why) => panic!("couldn't seek on {}: {}", display, Error::description(&why)),
+	        Ok(_) => debug!("Successfully seeked to pos: {}", start_pos.to_string()),
+	    }
+
+        match self.file.write(&block.to_bytes()) {
+        	Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
+	        Ok(_) => debug!("Successfully wrote block: {}", block.blocknumber),
+        }
+    }
+
+    /*
+    fn new_block(&mut self) -> Block {
+        let mut block = Block::new_block(self.get_number_of_blocks() + 1, self.get_block_size());
+
+        self.set_number_of_blocks(block.blocknumber);
+        self.write_block(block);
+
+        return block;
+    }
+    */
 
     fn set_number_of_blocks(&mut self, number: u64) {
         debug!("Setting number of blocks to: {}", number);
