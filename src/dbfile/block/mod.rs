@@ -101,26 +101,35 @@ impl DBBlock for Block {
             0 => (self.body_length() as u64) + start,
             _ => range[1],
         };
+        let length = end - start;
 
-        debug!("About to following bytes to section at {}: {:?}", start, bytes);
+        debug!("About to following bytes to block {} section at {}: {:?}", self.blocknumber, start, bytes);
 
-        let last_index_block_data = self.bytes.len() as usize;
-
+        // Determine the last populated index of the byte vector.
+        let last_index_block_data = self.bytes.len() as u64;
+        let last_index_of_data_to_write = (bytes.len() - 1) as u64;
         debug!("Last index of block data: {}", last_index_block_data);
 
-        if ((last_index_block_data as u64) < end) {
-            for i in (last_index_block_data as u64)..(end + 1) {
+        // If we need to, expand the vector containing the block contents.
+        // --> TODO: Eventually, this should be able to be replaced by the resize() method, but it's
+        //           unstable as of now.
+        if ((last_index_block_data) < end) {
+            for i in (last_index_block_data)..(end + 1) {
                 self.bytes.push(0);
             }
         }
 
-        for i in start..end {
-            if ((i - start) > ((bytes.len() as u64) - 1)) {
-                debug!("shouldn't be here");
-                self.bytes[i as usize] = 0;
+        // Iterate over the bytes in the section
+        for i in 0..length {
+            // Determine the index in the block to write.
+            let index_to_set = (i + start) as usize;
+
+            // If we're beyond the bytes to write, just use zeros
+            if (i > last_index_of_data_to_write) {
+                self.bytes[index_to_set] = 0;
             }
             else {
-                self.bytes[i as usize] = bytes[(i - start) as usize];
+                self.bytes[index_to_set] = bytes[i as usize];
             }
         }
     }
