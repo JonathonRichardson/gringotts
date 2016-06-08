@@ -121,7 +121,11 @@ impl Dbfile {
 
         dbfile.write_segment(Locations::Version, CURRENT_DB_VERSION.to_bytes());
         dbfile.set_block_size(DEFAULT_BLOCK_SIZE);
-        dbfile.set_number_of_blocks(1);
+
+        // Initialize the first block
+        let mut block = dbfile.new_block();
+        block.set_block_type(BlockType::Pointer);
+        dbfile.write_block(&block);
 
         return dbfile;
     }

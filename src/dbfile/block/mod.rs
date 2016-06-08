@@ -1,4 +1,3 @@
-use std::mem;
 use abomonation::{encode, decode};
 
 pub mod kvset;
@@ -14,14 +13,39 @@ pub trait HasSectionAddress {
 
 enum CommonSection {
     Body,
-    BodySize
+    BodySize,
+    Type
 }
 
 impl HasSectionAddress for CommonSection {
     fn get_start_and_end(&self) -> [u64; 2] {
         match *self {
             CommonSection::Body => [256,0],
-            CommonSection::BodySize => [0,4]
+            CommonSection::BodySize => [0,4],
+            CommonSection::Type => [4,8],
+        }
+    }
+}
+
+pub enum BlockType {
+    Pointer,
+    Data
+}
+
+impl BlockType {
+    fn get_code(&self) -> u32 {
+        let code: u32 = match *self {
+            BlockType::Pointer => 22,
+            BlockType::Data => 40
+        };
+
+        return code;
+    }
+
+    fn get_block_type(code: u32) -> BlockType {
+        match code {
+            22 => BlockType::Pointer,
+            _ => BlockType::Data
         }
     }
 }
@@ -78,12 +102,25 @@ impl DBBlock for Block {
             _ => range[1],
         };
 
+        debug!("About to following bytes to section at {}: {:?}", start, bytes);
+
+        let last_index_block_data = self.bytes.len() as usize;
+
+        debug!("Last index of block data: {}", last_index_block_data);
+
+        if ((last_index_block_data as u64) < end) {
+            for i in (last_index_block_data as u64)..(end + 1) {
+                self.bytes.push(0);
+            }
+        }
+
         for i in start..end {
-            if (i > ((bytes.len() as u64) + 1)) {
+            if ((i - start) > ((bytes.len() as u64) - 1)) {
+                debug!("shouldn't be here");
                 self.bytes[i as usize] = 0;
             }
             else {
-                self.bytes[i as usize] = bytes[i as usize];
+                self.bytes[i as usize] = bytes[(i - start) as usize];
             }
         }
     }
@@ -99,6 +136,13 @@ impl DBBlock for Block {
     }
 }
 
-pub struct HeaderBlock {
-    block: Block
+impl Block {
+    pub fn set_block_type(&mut self, block_type: BlockType) {
+        let code: u32 = block_type.get_code();
+
+        let mut bytes = Vec::new();
+        unsafe { encode(&code, &mut bytes); }
+
+        self.write_section(CommonSection::Type, bytes);
+    }
 }
