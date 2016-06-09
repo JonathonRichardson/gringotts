@@ -15,6 +15,15 @@ var exec = function(command) {
   return child_process.execSync(command, execConfig).toString();
 }
 
+describe("cargo test", function() {
+  it ("should pass all tests", function(done) {
+    child_process.exec("cargo test 2>&1", function(error, stdout, stderr) {
+      expect(error).toBeNull();
+      done();
+    })
+  });
+});
+
 describe("dbctl", function() {
   var dbctl = function(command, file) {
     return exec('../target/debug/dbctl ' + command + ' --database-file ' + file);
