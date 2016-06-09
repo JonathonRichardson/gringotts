@@ -1,5 +1,6 @@
 use abomonation::{encode, decode};
 use std::error::Error;
+use std::io;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::fs::File;
@@ -102,12 +103,17 @@ fn get_magic_string() -> String {
 }
 
 impl Dbfile {
-    pub fn create(string_path: &String) -> Dbfile {
+    pub fn create(string_path: &String) -> io::Result<Dbfile> {
         // Create a path to the desired file
 	    let path = Path::new(&string_path);
 	    let display = path.display();
 
-        let mut file = OpenOptions::new().read(true).write(true).create(true).open(string_path).unwrap();
+        let mut file: File = match OpenOptions::new().read(true).write(true).create(true).open(string_path) {
+            Ok(file) => file,
+            Err(why) => {
+                return Err(why);
+            },
+        };
 
         match file.write(get_magic_string().as_bytes()) {
             Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
@@ -127,7 +133,7 @@ impl Dbfile {
         block.set_block_type(BlockType::Pointer);
         dbfile.write_block(&block);
 
-        return dbfile;
+        return Ok(dbfile);
     }
 
     pub fn open(string_path: &String) -> Dbfile {

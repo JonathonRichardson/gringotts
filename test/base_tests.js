@@ -77,10 +77,11 @@ describe("dbctl", function() {
       expect(output).toMatch(/: 0000 0000 1600/);
     });
 
-    xit("should not create the file twice", function() {
+    it("should not create the file twice", function() {
       var output = dbctl("create", testdbfile);
 
       expect(output).not.toMatch(/Successfully created/i);
+      expect(output).toMatch(/already exists/i);
     });
   });
 

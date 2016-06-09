@@ -7,6 +7,7 @@ use ansi_term::Colour::*;
 use getopts::Options;
 use gringotts::*;
 use std::env;
+use std::fs::OpenOptions;
 use std::path::Path;
 
 fn main() {
@@ -46,10 +47,7 @@ fn main() {
     }
 
     // Grab the indicated filename.
-    let filename = match matches.opt_str("f") {
-        Some(val) => val,
-        _ => panic!("You must indicate the database file you with to work with.")
-    };
+    let filename = matches.opt_str("f").unwrap();
 
     match command.as_ref() {
         "create"    => create_db(filename),
@@ -64,8 +62,21 @@ fn main() {
 }
 
 fn create_db(filename: String) {
-    dbfile::Dbfile::create(&filename);
-    println!("Successfully created database: {}", Path::new(&filename).display());
+    match OpenOptions::new().read(true).open(&filename) {
+        Ok(file) => {
+            println!("Database already exists");
+        }
+        _ => {
+            match dbfile::Dbfile::create(&filename) {
+                Ok(dbfile) => println!("Successfully created database: {}", Path::new(&filename).display()),
+                Err(err) => {
+                    let message = format!("Failed to create database: {}", err.to_string());
+                    println!("{}", Red.bold().paint(message));
+                }
+            }
+
+        }
+    }
 }
 
 fn get_info(filename: String) {
