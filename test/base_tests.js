@@ -17,7 +17,7 @@ var exec = function(command) {
 
 describe("dbctl", function() {
   var dbctl = function(command, file) {
-    return exec('../target/debug/dbctl ' + command + ' ' + file);
+    return exec('../target/debug/dbctl ' + command + ' --database-file ' + file);
   };
 
   beforeAll(function() {
@@ -27,6 +27,32 @@ describe("dbctl", function() {
   afterAll(function() {
     fs.rmdirSync(test_dir);
   });
+
+
+  describe("generally", function() {
+    var checkCommandForPanic = function(command, file) {
+      var output;
+      try {
+        output = exec(command);
+      }
+      catch (e) {
+        throw "dbctl panicked";
+      }
+      expect(output).not.toMatch(/thread .* panicked/i);
+
+      return output;
+    };
+
+    it("should handle bad command names", function() {
+      checkCommandForPanic('../target/debug/dbctl nfo --database-file ' + testdbfile);
+    });
+
+    it("should handle not getting a filename", function() {
+      checkCommandForPanic('../target/debug/dbctl nfo --database-fil ' + testdbfile);
+      checkCommandForPanic('../target/debug/dbctl nfo --database-file');
+      checkCommandForPanic('../target/debug/dbctl nfo ' + testdbfile);
+    });
+  })
 
   describe("create", function() {
     beforeAll(function() {
