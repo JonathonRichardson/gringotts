@@ -6,6 +6,7 @@ extern crate env_logger;
 extern crate abomonation;
 
 pub mod dbfile;
+pub mod error;
 pub mod version;
 
 #[test]
