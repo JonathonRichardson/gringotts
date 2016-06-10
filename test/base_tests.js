@@ -11,8 +11,9 @@ var execConfig = {
   cwd: test_dir
 };
 
-var exec = function(command) {
-  return child_process.execSync(command, execConfig).toString();
+var exec = function(command, config) {
+  config = config || {};
+  return child_process.execSync(command, _.extend(execConfig, config)).toString();
 }
 
 describe("cargo test", function() {
@@ -25,8 +26,9 @@ describe("cargo test", function() {
 });
 
 describe("dbctl", function() {
-  var dbctl = function(command, file) {
-    return exec('../target/debug/dbctl ' + command + ' --database-file ' + file);
+  var dbctl = function(command, file, extraArgs, config) {
+    config = config || config;
+    return exec('../target/debug/dbctl ' + command + ' --database-file ' + file + ' ' + extraArgs, config);
   };
 
   beforeAll(function() {
@@ -126,6 +128,22 @@ describe("dbctl", function() {
       });
 
       expect(unexecuted_expects).toBe(0);
+    });
+  });
+
+  describe("get/set", function() {
+    beforeAll(function() {
+      dbctl('create', testdbfile);
+    });
+
+    afterAll(function() {
+      fs.unlinkSync(testdbfile);
+    });
+
+    it("should store and retrieve information", function() {
+      dbctl("set", testdbfile, "new key", {input: "new value"});
+      var output = dbctl("get", testdbfile, "new Key");
+      expect(output).toBe("new value");
     });
   });
 });

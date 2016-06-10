@@ -108,5 +108,5 @@ fn set_val(filename: String, key: String) {
 
 fn get_val(filename: String, key: String) {
     let mut file = dbfile::Dbfile::open(&filename);
-    println!("{}", file.get_val(key));
+    print!("{}", file.get_val(key));
 }
