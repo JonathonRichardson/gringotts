@@ -270,6 +270,7 @@ impl Dbfile {
 	    }
 
         let mut buffer = Vec::with_capacity(block_size_in_bytes as usize);
+        unsafe{ buffer.set_len(block_size_in_bytes as usize) };
 
 	    match self.file.read(&mut buffer) {
 	        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
@@ -325,5 +326,19 @@ impl Dbfile {
     fn set_block_size(&mut self, size: u8) {
         let bytes = vec!(size);
         self.write_segment(Locations::BlockSize, bytes);
+    }
+
+    pub fn set_val(&mut self, key: String, val: String) {
+        let mut block = self.get_block(1);
+        block.set(key, val);
+        self.write_block(&mut block);
+    }
+
+    pub fn get_val(&mut self, key: String) -> String {
+        let mut block = self.get_block(1);
+        match block.get(key) {
+            Some(val) => val.clone(),
+            None => String::from(""),
+        }
     }
 }

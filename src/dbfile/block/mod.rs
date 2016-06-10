@@ -62,7 +62,6 @@ const HEADER_SIZE: usize = 256;
 impl SerializeableBlock for Block {
     fn deserialize(block_number: u64, bytes_vec: Vec<u8>) -> Block {
         let mut header_bytes = Vec::with_capacity(HEADER_SIZE);
-        unsafe{ header_bytes.set_len(HEADER_SIZE) };
         for i in 0..HEADER_SIZE {
             if ((i + 1) > bytes_vec.len()) { // use i+1 instead of len() - 1 to prevent issues when len() is 0
                 header_bytes.push(0);
@@ -81,7 +80,12 @@ impl SerializeableBlock for Block {
         let body_length = block.body_length();
         let mut body = Vec::with_capacity(body_length as usize);
         for i in 0..body_length {
-            body[i as usize] = bytes_vec[(i as usize) + HEADER_SIZE];
+            if ((i + (HEADER_SIZE as u32) + 1) > (bytes_vec.len() as u32)) { // use i+1 instead of len() - 1 to prevent issues when len() is 0
+                body.push(0);
+            }
+            else {
+                body.push(bytes_vec[(i as usize) + HEADER_SIZE]);
+            }
         }
         block.data = match KVSet::deserialize(&mut body) {
             Ok(set) => set,
@@ -95,7 +99,7 @@ impl SerializeableBlock for Block {
         let mut data_bytes = self.data.serialize();
         self.set_body_length(data_bytes.len() as u32);
         let mut serialized_bytes = self.header_bytes.clone();
-        serialized_bytes.append(&mut self.data.serialize());
+        serialized_bytes.append(&mut data_bytes);
         return serialized_bytes;
     }
 }
@@ -196,5 +200,15 @@ impl BasicBlock for Block {
         unsafe { encode(&code, &mut bytes); }
 
         self.write_section(CommonSection::Type, bytes);
+    }
+}
+
+impl Block {
+    pub fn set(&mut self, key: String, val: String) {
+        self.data.put(key, val);
+    }
+
+    pub fn get(&mut self, key: String) -> Option<&String> {
+        return self.data.get(key);
     }
 }

@@ -8,6 +8,7 @@ use getopts::Options;
 use gringotts::*;
 use std::env;
 use std::fs::OpenOptions;
+use std::io::{self, Read};
 use std::path::Path;
 
 fn main() {
@@ -52,6 +53,8 @@ fn main() {
     match command.as_ref() {
         "create"    => create_db(filename),
         "info"      => get_info(filename),
+        "set"       => set_val(filename, matches.free[0].clone()),
+        "get"       => get_val(filename, matches.free[0].clone()),
         cmd => {
             let message = format!("{} is not a recognized command.", cmd);
             println!("{}", Red.bold().paint(message));
@@ -94,4 +97,16 @@ fn get_info(filename: String) {
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} COMMAND [options]", program);
     print!("{}", opts.usage(&brief));
+}
+
+fn set_val(filename: String, key: String) {
+    let mut file = dbfile::Dbfile::open(&filename);
+    let mut buffer = String::new();
+    io::stdin().read_to_string(&mut buffer).unwrap();
+    file.set_val(key, buffer);
+}
+
+fn get_val(filename: String, key: String) {
+    let mut file = dbfile::Dbfile::open(&filename);
+    println!("{}", file.get_val(key));
 }
