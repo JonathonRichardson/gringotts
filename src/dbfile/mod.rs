@@ -130,8 +130,8 @@ impl Dbfile {
 
         // Initialize the first block
         let mut block = dbfile.new_block();
-        block.set_block_type(BlockType::Pointer);
-        dbfile.write_block(&block);
+        block.set_block_type(BlockType::Root);
+        dbfile.write_block(&mut block);
 
         return Ok(dbfile);
     }
@@ -279,7 +279,7 @@ impl Dbfile {
         return Block::deserialize(block_number, buffer);
     }
 
-    pub fn write_block(&mut self, block: &Block) {
+    pub fn write_block(&mut self, block: &mut Block) {
         let block_size_in_bytes = (self.get_block_size() as u64) * 1024;
         let start_pos = ((block.blocknumber - 1) * block_size_in_bytes) + START_OF_BLOCKS;
 
@@ -291,7 +291,7 @@ impl Dbfile {
 	        Ok(_) => debug!("Successfully seeked to pos: {}", start_pos.to_string()),
 	    }
 
-        match self.file.write(&block.serialize()) {
+        match self.file.write(&mut block.serialize()) {
         	Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
 	        Ok(_) => debug!("Successfully wrote block: {}", block.blocknumber),
         }
@@ -304,10 +304,10 @@ impl Dbfile {
         let new_num_blocks = old_num_blocks + 1;
 
         // Create the new block
-        let block = Block::deserialize(new_num_blocks, bytes);
+        let mut block = Block::deserialize(new_num_blocks, bytes);
 
         self.set_number_of_blocks(new_num_blocks);
-        self.write_block(&block);
+        self.write_block(&mut block);
 
         return block;
     }

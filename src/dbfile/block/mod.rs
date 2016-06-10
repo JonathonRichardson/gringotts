@@ -1,10 +1,12 @@
 use abomonation::{encode, decode};
 
 pub mod kvset;
+use dbfile::block::kvset::*;
 
 pub struct Block {
-    bytes: Vec<u8>,
-    pub blocknumber: u64
+    header_bytes: Vec<u8>,
+    pub blocknumber: u64,
+    pub data: KVSet,
 }
 
 pub trait HasSectionAddress {
@@ -28,15 +30,15 @@ impl HasSectionAddress for CommonSection {
 }
 
 pub enum BlockType {
-    Pointer,
-    Data
+    Node,
+    Root,
 }
 
 impl BlockType {
     fn get_code(&self) -> u32 {
         let code: u32 = match *self {
-            BlockType::Pointer => 22,
-            BlockType::Data => 40
+            BlockType::Root => 22,
+            BlockType::Node => 40
         };
 
         return code;
@@ -44,27 +46,57 @@ impl BlockType {
 
     fn get_block_type(code: u32) -> BlockType {
         match code {
-            22 => BlockType::Pointer,
-            _ => BlockType::Data
+            22 => BlockType::Root,
+            _ => BlockType::Node
         }
     }
 }
 
 pub trait SerializeableBlock {
     fn deserialize(block_number: u64, bytes_vec: Vec<u8>)  -> Block;
-    fn serialize(&self) -> Vec<u8>;
+    fn serialize(&mut self) -> Vec<u8>;
 }
+
+const HEADER_SIZE: usize = 256;
 
 impl SerializeableBlock for Block {
     fn deserialize(block_number: u64, bytes_vec: Vec<u8>) -> Block {
-        return Block {
-            bytes: bytes_vec.clone(),
-            blocknumber: block_number
+        let mut header_bytes = Vec::with_capacity(HEADER_SIZE);
+        unsafe{ header_bytes.set_len(HEADER_SIZE) };
+        for i in 0..HEADER_SIZE {
+            if ((i + 1) > bytes_vec.len()) { // use i+1 instead of len() - 1 to prevent issues when len() is 0
+                header_bytes.push(0);
+            }
+            else {
+                header_bytes.push(bytes_vec[i]);
+            }
         }
+
+        let mut block = Block {
+            header_bytes: header_bytes,
+            blocknumber: block_number,
+            data: KVSet::new()
+        };
+
+        let body_length = block.body_length();
+        let mut body = Vec::with_capacity(body_length as usize);
+        for i in 0..body_length {
+            body[i as usize] = bytes_vec[(i as usize) + HEADER_SIZE];
+        }
+        block.data = match KVSet::deserialize(&mut body) {
+            Ok(set) => set,
+            Err(_) => panic!("Block {} is corrupt.", block_number)
+        };
+
+        return block;
     }
 
-    fn serialize(&self) -> Vec<u8> {
-        return self.bytes.clone();
+    fn serialize(&mut self) -> Vec<u8> {
+        let mut data_bytes = self.data.serialize();
+        self.set_body_length(data_bytes.len() as u32);
+        let mut serialized_bytes = self.header_bytes.clone();
+        serialized_bytes.append(&mut self.data.serialize());
+        return serialized_bytes;
     }
 }
 
@@ -72,6 +104,7 @@ trait DBBlock {
     fn read_section<T>(&self, section: T) -> Vec<u8> where T: HasSectionAddress;
     fn write_section<T>(&mut self, section: T, bytes: Vec<u8>) where T: HasSectionAddress;
     fn body_length(&self) -> u32;
+    fn set_body_length(&mut self, length: u32);
 }
 
 impl DBBlock for Block {
@@ -87,7 +120,7 @@ impl DBBlock for Block {
         };
 
         for i in start..end {
-            results.push(self.bytes[i as usize]);
+            results.push(self.header_bytes[i as usize]);
         }
 
         return results;
@@ -106,7 +139,7 @@ impl DBBlock for Block {
         debug!("About to following bytes to block {} section at {}: {:?}", self.blocknumber, start, bytes);
 
         // Determine the last populated index of the byte vector.
-        let last_index_block_data = self.bytes.len() as u64;
+        let last_index_block_data = self.header_bytes.len() as u64;
         let last_index_of_data_to_write = (bytes.len() - 1) as u64;
         debug!("Last index of block data: {}", last_index_block_data);
 
@@ -115,7 +148,7 @@ impl DBBlock for Block {
         //           unstable as of now.
         if ((last_index_block_data) < end) {
             for i in (last_index_block_data)..(end + 1) {
-                self.bytes.push(0);
+                self.header_bytes.push(0);
             }
         }
 
@@ -126,10 +159,10 @@ impl DBBlock for Block {
 
             // If we're beyond the bytes to write, just use zeros
             if (i > last_index_of_data_to_write) {
-                self.bytes[index_to_set] = 0;
+                self.header_bytes[index_to_set] = 0;
             }
             else {
-                self.bytes[index_to_set] = bytes[i as usize];
+                self.header_bytes[index_to_set] = bytes[i as usize];
             }
         }
     }
@@ -142,6 +175,12 @@ impl DBBlock for Block {
         else {
             return 0;
         }
+    }
+
+    fn set_body_length(&mut self, length: u32) {
+        let mut vector = Vec::new();
+        unsafe { encode(&length, &mut vector); }
+        self.write_section(CommonSection::BodySize, vector);
     }
 }
 
