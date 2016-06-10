@@ -1,5 +1,6 @@
 use abomonation::{encode, decode};
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use error::*;
 
 pub struct KVSet {
@@ -77,6 +78,25 @@ impl KVSet {
             data: BTreeMap::new(),
             pointers: BTreeMap::new()
         }
+    }
+
+    fn get_keys(&self) -> Vec<String> {
+        let mut keyset: HashSet<String> = HashSet::new();
+        for datakey in self.data.keys() {
+            keyset.insert(datakey.clone());
+        }
+        for pointerkey in self.pointers.keys() {
+            keyset.insert(pointerkey.clone());
+        }
+
+        let mut keyvec: Vec<String> = Vec::new();
+        for key in &keyset {
+            keyvec.push(key.clone());
+        }
+
+        keyvec.sort();
+
+        return keyvec;
     }
 
     /// Adds a new key/value pair to the KVSet.  The return value will be a String, if there was
@@ -157,7 +177,7 @@ impl KVSet {
         let mut bytes = Vec::new();
         let null_bytes: Vec<u8> = vec!(0,2);
 
-        for key in self.data.keys() {
+        for key in self.get_keys() {
             if (bytes.len() > 0) {
                 bytes.append(&mut Character::RecordSeperator.get_value());
             }
@@ -169,18 +189,20 @@ impl KVSet {
                 }
             }
 
-            bytes.append(&mut Character::ValueStart.get_value());
-            for byte in self.data.get(key).unwrap().clone().into_bytes() {
-                match byte {
-                    0 => bytes.append(&mut null_bytes.clone()),
-                    e => bytes.push(e)
+            if (self.data.contains_key(&key)) {
+                bytes.append(&mut Character::ValueStart.get_value());
+                for byte in self.data.get(&key).unwrap().clone().into_bytes() {
+                    match byte {
+                        0 => bytes.append(&mut null_bytes.clone()),
+                        e => bytes.push(e)
+                    }
                 }
             }
 
-            if (self.pointers.contains_key(key)) {
+            if (self.pointers.contains_key(&key)) {
                 bytes.append(&mut Character::PointerStart.get_value());
                 let mut vector = Vec::new();
-                unsafe { encode(&self.pointers.get(key).unwrap().clone(), &mut vector); }
+                unsafe { encode(&self.pointers.get(&key).unwrap().clone(), &mut vector); }
                 for byte in vector {
                     match byte {
                         0 => bytes.append(&mut null_bytes.clone()),
@@ -233,7 +255,7 @@ mod tests {
         println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
-            Err(e) => panic!("Error deserializing KVSet"),
+            Err => panic!("Error deserializing KVSet"),
         };
 
         match keyset2.get(key.clone()) {
@@ -264,7 +286,7 @@ mod tests {
         println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
-            Err(e) => panic!("Error deserializing KVSet"),
+            Err => panic!("Error deserializing KVSet"),
         };
 
         match keyset2.get(key.clone()) {
@@ -295,7 +317,7 @@ mod tests {
         println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
-            Err(e) => panic!("Error deserializing KVSet"),
+            Err => panic!("Error deserializing KVSet"),
         };
 
         match keyset2.get_block_ref(key.clone()) {
