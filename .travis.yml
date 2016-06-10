@@ -8,7 +8,7 @@ matrix:
   allow_failures:
     - rust: nightly
 before_install:
+  - nvm install 6
+  - nvm use 6
   - npm install -g gulp
   - npm install
-node_js:
-  - "6"
