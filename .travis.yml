@@ -1,0 +1,12 @@
+script: gulp test
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+before_install:
+  - npm install -g gulp
+  - npm install
