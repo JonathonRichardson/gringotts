@@ -141,9 +141,20 @@ describe("dbctl", function() {
     });
 
     it("should store and retrieve information", function() {
-      dbctl("set", testdbfile, "new key", {input: "new value"});
-      var output = dbctl("get", testdbfile, "new Key");
-      expect(output).toBe("new value");
+      var key1 = "new key";
+      var val1 = "new value";
+      dbctl("set", testdbfile, key1, {input: val1});
+      var output1 = dbctl("get", testdbfile, key1);
+      expect(output1).toBe(val1);
+
+      var key2 = "newkey2";
+      var val2 = "asdf\0garbage";
+      dbctl("set", testdbfile, key2, {input: val2});
+      var output2 = dbctl("get", testdbfile, key2);
+
+      output1 = dbctl("get", testdbfile, key1);
+      expect(output1).toBe(val1);
+      expect(output2).toBe(val2);
     });
   });
 });
