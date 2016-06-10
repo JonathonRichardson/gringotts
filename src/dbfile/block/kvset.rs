@@ -255,7 +255,7 @@ mod tests {
         println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
-            Err => panic!("Error deserializing KVSet"),
+            Err(_) => panic!("Error deserializing KVSet"),
         };
 
         match keyset2.get(key.clone()) {
@@ -286,7 +286,7 @@ mod tests {
         println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
-            Err => panic!("Error deserializing KVSet"),
+            Err(_) => panic!("Error deserializing KVSet"),
         };
 
         match keyset2.get(key.clone()) {
@@ -317,7 +317,7 @@ mod tests {
         println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
-            Err => panic!("Error deserializing KVSet"),
+            Err(_) => panic!("Error deserializing KVSet"),
         };
 
         match keyset2.get_block_ref(key.clone()) {
