@@ -1,4 +1,4 @@
-# gringotts
+# gringotts [![Build Status](https://travis-ci.org/JonathonRichardson/gringotts.svg?branch=master)](https://travis-ci.org/JonathonRichardson/gringotts)
 A database written in Rust.
 
 # Disclaimer
