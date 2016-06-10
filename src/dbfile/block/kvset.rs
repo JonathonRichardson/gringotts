@@ -14,16 +14,16 @@ enum Character {
     PointerStart
 }
 
-fn get_character(bytes2: &mut Vec<u8>) -> Option<Character> {
-    if (bytes2.len() == 0) {
+fn get_character(bytes: &mut Vec<u8>) -> Option<Character> {
+    if (bytes.len() == 0) {
         return None;
     }
 
-    let byte = bytes2.pop();
+    let byte = bytes.pop();
 
     match byte {
         Some(0) => {
-            match bytes2.pop() {
+            match bytes.pop() {
                 Some(0) => return Some(Character::RecordSeperator),
                 Some(1) => return Some(Character::ValueStart),
                 Some(2) => return Some(Character::Regular(0)),
@@ -36,14 +36,14 @@ fn get_character(bytes2: &mut Vec<u8>) -> Option<Character> {
     }
 }
 
-fn get_value_vec(bytes2: &mut Vec<u8>) -> Vec<u8> {
+fn get_value_vec(bytes: &mut Vec<u8>) -> Vec<u8> {
     let mut value_bytes = Vec::new();
     loop {
-        match get_character(bytes2) {
+        match get_character(bytes) {
             Some(Character::Regular(byte)) => value_bytes.push(byte),
             Some(ch) => {
                 // Put back what you have taken
-                bytes2.append(&mut ch.get_value());
+                bytes.append(&mut ch.get_value());
                 break; // we're done here.
             },
             None => break,
