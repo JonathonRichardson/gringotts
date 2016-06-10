@@ -1,14 +1,9 @@
+use abomonation::{encode, decode};
 use std::collections::BTreeMap;
-use std::str;
 use error::*;
 
-pub struct KVPair {
-    key: String,
-    value: String,
-}
-
 pub struct KVSet {
-    data: BTreeMap<String, String>
+    data: BTreeMap<String, String>,
     pointers: BTreeMap<String, u64>
 }
 
@@ -19,22 +14,63 @@ enum Character {
     PointerStart
 }
 
-impl Character {
-    gn get_value(&self) -> Vec<u8> {
-        match self {
-            Character::Regular(0)      => vec!(0,2),
-            Character::Regular(val)    => val,
-            Character::RecordSeperator => vec!(0,0),
-            Character::ValueStart      => vec!(0,1),
-            Character::PointerStart    => vec!(0,3),
+fn get_character(bytes2: &mut Vec<u8>) -> Option<Character> {
+    if (bytes2.len() == 0) {
+        return None;
+    }
+
+    let byte = bytes2.pop();
+
+    match byte {
+        Some(0) => {
+            match bytes2.pop() {
+                Some(0) => return Some(Character::RecordSeperator),
+                Some(1) => return Some(Character::ValueStart),
+                Some(2) => return Some(Character::Regular(0)),
+                Some(3) => return Some(Character::PointerStart),
+                _ => panic!("Invalid character sequence")
+            }
+        },
+        Some(ch) => return Some(Character::Regular(ch)),
+        None => return None,
+    }
+}
+
+fn get_value_vec(bytes2: &mut Vec<u8>) -> Vec<u8> {
+    let mut value_bytes = Vec::new();
+    loop {
+        match get_character(bytes2) {
+            Some(Character::Regular(byte)) => value_bytes.push(byte),
+            Some(ch) => {
+                // Put back what you have taken
+                bytes2.append(&mut ch.get_value());
+                break; // we're done here.
+            },
+            None => break,
         }
+    }
+    return value_bytes;
+}
+
+
+impl Character {
+    fn get_value(&self) -> Vec<u8> {
+        let mut duple: Vec<u8> = vec!(0);
+        match *self {
+            Character::Regular(0)      => duple.push(2),
+            Character::Regular(val)    => duple.push(val),
+            Character::RecordSeperator => duple.push(0),
+            Character::ValueStart      => duple.push(1),
+            Character::PointerStart    => duple.push(3),
+        }
+        return duple;
     }
 }
 
 impl KVSet {
     pub fn new() -> KVSet {
         return KVSet {
-            data: BTreeMap::new()
+            data: BTreeMap::new(),
             pointers: BTreeMap::new()
         }
     }
@@ -49,49 +85,18 @@ impl KVSet {
         return self.data.get(&key);
     }
 
-    pub fn deserialize(bytes: &mut Vec<u8>) -> Result<KVSet, CorruptDataError> {
+    pub fn deserialize(bytes3: &mut Vec<u8>) -> Result<KVSet, CorruptDataError> {
         let mut datamap = BTreeMap::new();
         let mut pointermap = BTreeMap::new();
+        let mut bytes = bytes3.clone();
         let length = bytes.len();
 
         // If the byte vector is empty, we're good.
         if (length == 0) {
             return Ok(KVSet {
-                data: map,
-                pointers: BTreeMap::new()
+                data: datamap,
+                pointers: pointermap
             });
-        }
-
-        let get_character = |&mut bytes| -> Option<Character> {
-            let byte = bytes.pop();
-
-            if (byte == 0) {
-                match bytes.pop() {
-                    0 => return Character::RecordSeperator,
-                    1 => return Character::ValueStart,
-                    2 => return Character::Regular(0),
-                    3 => return Character::PointerStart,
-                }
-            }
-            else {
-                return Character::Regular(byte);
-            }
-        };
-
-        let get_value_vec = |&mut bytes| -> Vec<u8> {
-            let value_bytes = Vec::new();
-            loop {
-                match get_character(&mut bytes) {
-                    Some(Character::Regular(byte)) => string_bytes.push(byte),
-                    Some(_) => {
-                        // Put back what you have taken
-                        bytes.append(_.get_value());
-                        break; // we're done here.
-                    },
-                    None => break,
-                }
-            }
-            return value_bytes;
         }
 
         bytes.reverse();
@@ -101,68 +106,69 @@ impl KVSet {
             let mut ptr_buffer = Vec::new();
 
             match get_character(&mut bytes) {
-                Character::ValueStart => val_buffer.append(get_value_vec(&mut bytes)),
-                Character::PointerStart => ptr_buffer.append(get_value_vec(&mut bytes)),
-                Character::RecordSeperator => {
+                Some(Character::ValueStart)      => val_buffer.append(&mut get_value_vec(&mut bytes)),
+                Some(Character::PointerStart)    => ptr_buffer.append(&mut get_value_vec(&mut bytes)),
+                Some(Character::RecordSeperator) => {
                     let key = String::from_utf8(key_buffer.clone()).unwrap(); // TODO: change unwrap to throw CorruptDataError
                     let val = String::from_utf8(val_buffer.clone()).unwrap(); // TODO: change unwrap to throw CorruptDataError
 
-                    datamap.insert(key, val);
+                    datamap.insert(key.clone(), val);
 
                     match ptr_buffer.len() {
                         0 => {}, // do nothing
                         8 => {
                             let block_number = unsafe { decode::<u64>(&mut ptr_buffer) };
-                            pointermap.insert(key, block_number);
-                        }
+                            pointermap.insert(key.clone(), *block_number.unwrap().0);
+                        },
+                        _ => panic!("Invalid pointer length")
                     }
                 },
+                Some(Character::Regular(ch)) => {
+                    bytes.push(ch);
+                    key_buffer.append(&mut get_value_vec(&mut bytes))
+                },
+                _ => panic!("Invalid pointer length")
             }
         }
 
         return Ok(KVSet {
-            data: map
+            data: datamap,
+            pointers: pointermap
         });
     }
 
     pub fn serialize(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
+        let null_bytes: Vec<u8> = vec!(0,2);
 
         for key in self.data.keys() {
             if (bytes.len() > 0) {
-                bytes.push(0);
-                bytes.push(0);
+                bytes.append(&mut Character::RecordSeperator.get_value());
             }
 
             for byte in key.clone().into_bytes() {
-                if (byte == 0) {
-                    bytes.push(0);
-                    bytes.push(2);
-                }
-                else {
-                    bytes.push(byte);
+                match byte {
+                    0 => bytes.append(&mut null_bytes.clone()),
+                    e => bytes.push(e),
                 }
             }
 
-            bytes.push(0);
-            bytes.push(1);
-
+            bytes.append(&mut Character::ValueStart.get_value());
             for byte in self.data.get(key).unwrap().clone().into_bytes() {
-                if (byte == 0) {
-                    bytes.push(0);
-                    bytes.push(2);
+                match byte {
+                    0 => bytes.append(&mut null_bytes.clone()),
+                    e => bytes.push(e)
                 }
-                else {
+            }
+
+            if (self.pointers.contains_key(key)) {
+                bytes.append(&mut Character::PointerStart.get_value());
+                let mut vector = Vec::new();
+                unsafe { encode(&self.pointers.get(key).unwrap().clone(), &mut vector); }
+                for byte in vector {
                     bytes.push(byte);
                 }
             }
-
-            if (self.data.contains_key(key)) {
-
-            }
-
-            bytes.push(0);
-            bytes.push(3);
         }
 
         return bytes;

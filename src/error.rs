@@ -8,4 +8,8 @@ impl CorruptDataError {
             message: String::from(message)
         };
     }
+
+    pub fn get_message(&self) -> String {
+        return self.message.clone();
+    }
 }
