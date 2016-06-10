@@ -43,7 +43,11 @@ fn get_value_vec(bytes: &mut Vec<u8>) -> Vec<u8> {
             Some(Character::Regular(byte)) => value_bytes.push(byte),
             Some(ch) => {
                 // Put back what you have taken
-                bytes.append(&mut ch.get_value());
+                let mut bytes_to_put_back = ch.get_value();
+                // Since we're working on a reversed buffer, we'll need to reverse the buffer first;
+                bytes_to_put_back.reverse();
+                // Now, pop it back on.
+                bytes.append(&mut bytes_to_put_back);
                 break; // we're done here.
             },
             None => break,
@@ -85,6 +89,14 @@ impl KVSet {
         return self.data.get(&key);
     }
 
+    pub fn put_block_ref(&mut self, key: String, value: u64) -> Option<u64> {
+        return self.pointers.insert(key, value);
+    }
+
+    pub fn get_block_ref(&self, key: String) -> Option<&u64> {
+        return self.pointers.get(&key);
+    }
+
     pub fn deserialize(bytes3: &mut Vec<u8>) -> Result<KVSet, CorruptDataError> {
         let mut datamap = BTreeMap::new();
         let mut pointermap = BTreeMap::new();
@@ -100,15 +112,16 @@ impl KVSet {
         }
 
         bytes.reverse();
-        while(bytes.len() > 0) {
-            let mut key_buffer = Vec::new();
-            let mut val_buffer = Vec::new();
-            let mut ptr_buffer = Vec::new();
 
+        let mut key_buffer = Vec::new();
+        let mut val_buffer = Vec::new();
+        let mut ptr_buffer = Vec::new();
+
+        while(bytes.len() > 0 || key_buffer.len() > 0) {
             match get_character(&mut bytes) {
-                Some(Character::ValueStart)      => val_buffer.append(&mut get_value_vec(&mut bytes)),
-                Some(Character::PointerStart)    => ptr_buffer.append(&mut get_value_vec(&mut bytes)),
-                Some(Character::RecordSeperator) => {
+                Some(Character::ValueStart)   => val_buffer.append(&mut get_value_vec(&mut bytes)),
+                Some(Character::PointerStart) => ptr_buffer.append(&mut get_value_vec(&mut bytes)),
+                Some(Character::RecordSeperator) | None => {
                     let key = String::from_utf8(key_buffer.clone()).unwrap(); // TODO: change unwrap to throw CorruptDataError
                     let val = String::from_utf8(val_buffer.clone()).unwrap(); // TODO: change unwrap to throw CorruptDataError
 
@@ -122,12 +135,15 @@ impl KVSet {
                         },
                         _ => panic!("Invalid pointer length")
                     }
+
+                    key_buffer.clear();
+                    val_buffer.clear();
+                    ptr_buffer.clear();
                 },
                 Some(Character::Regular(ch)) => {
                     bytes.push(ch);
-                    key_buffer.append(&mut get_value_vec(&mut bytes))
-                },
-                _ => panic!("Invalid pointer length")
+                    key_buffer.append(&mut get_value_vec(&mut bytes));
+                }
             }
         }
 
@@ -166,7 +182,10 @@ impl KVSet {
                 let mut vector = Vec::new();
                 unsafe { encode(&self.pointers.get(key).unwrap().clone(), &mut vector); }
                 for byte in vector {
-                    bytes.push(byte);
+                    match byte {
+                        0 => bytes.append(&mut null_bytes.clone()),
+                        e => bytes.push(e)
+                    }
                 }
             }
         }
@@ -198,5 +217,90 @@ mod tests {
         );
 
         assert_eq!(keyset.serialize(), serialized_vector);
+    }
+
+    #[test]
+    fn serialization_block_ref() {
+        let key = String::from("key");
+        let blockno: u64 = 22;
+        let value = String::from("value");
+
+        let mut keyset = KVSet::new();
+        keyset.put(key.clone(), value.clone());
+        keyset.put_block_ref(key.clone(), blockno);
+
+        let vector = keyset.serialize();
+        println!("vec {:?}", vector);
+        let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
+            Ok(val) => val,
+            Err(e) => panic!("Error deserializing KVSet"),
+        };
+
+        match keyset2.get(key.clone()) {
+            Some(val) => assert_eq!(&value.clone(), val),
+            None => panic!("Expected a value from keyset")
+        };
+
+        match keyset2.get_block_ref(key.clone()) {
+            Some(val) => assert_eq!(blockno, *val),
+            None => panic!("Expected a value from keyset")
+        }
+    }
+
+    #[test]
+    fn serialization_multiple_keys() {
+        let key  = String::from("key");
+        let key2 = String::from("key2");
+        let value  = String::from("value");
+        let value2 = String::from("value2");
+        let blockno: u64 = 22;
+
+        let mut keyset = KVSet::new();
+        keyset.put(key.clone(),  value.clone());
+        keyset.put(key2.clone(), value2.clone());
+        keyset.put_block_ref(key.clone(), blockno);
+
+        let vector = keyset.serialize();
+        println!("vec {:?}", vector);
+        let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
+            Ok(val) => val,
+            Err(e) => panic!("Error deserializing KVSet"),
+        };
+
+        match keyset2.get(key.clone()) {
+            Some(val) => assert_eq!(&value.clone(), val),
+            None => panic!("Expected a value from keyset")
+        };
+
+        match keyset2.get(key2.clone()) {
+            Some(val) => assert_eq!(&value2.clone(), val),
+            None => panic!("Expected a value from keyset")
+        };
+
+        match keyset2.get_block_ref(key.clone()) {
+            Some(val) => assert_eq!(blockno, *val),
+            None => panic!("Expected a value from keyset")
+        }
+    }
+
+    #[test]
+    fn serialization_pointer_only() {
+        let key = String::from("key");
+        let blockno: u64 = 22;
+
+        let mut keyset = KVSet::new();
+        keyset.put_block_ref(key.clone(), blockno);
+
+        let vector = keyset.serialize();
+        println!("vec {:?}", vector);
+        let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
+            Ok(val) => val,
+            Err(e) => panic!("Error deserializing KVSet"),
+        };
+
+        match keyset2.get_block_ref(key.clone()) {
+            Some(val) => assert_eq!(blockno, *val),
+            None => panic!("Expected a value from keyset")
+        }
     }
 }
