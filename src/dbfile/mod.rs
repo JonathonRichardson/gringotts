@@ -12,6 +12,9 @@ use version::*;
 pub mod block;
 use dbfile::block::*;
 
+mod keychain;
+use dbfile::keychain::*;
+
 pub enum ReadLocationType {
     Number,
     UTF8String,
