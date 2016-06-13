@@ -111,13 +111,13 @@ impl KVSet {
 
         while (keys.len() > split_point && keys.len() >= 1) {
             let key = keys.pop().unwrap();
-            match self.pointers.remove(&key.clone()) {
-                Some(val) => kvset.put_block_ref(key.clone(), val),
+            match self.pointers.remove(&key) {
+                Some(val) => kvset.put_block_ref(&key, val),
                 None => None,
             };
 
-            match self.data.remove(&key.clone()) {
-                Some(val) => kvset.put(key.clone(), val),
+            match self.data.remove(&key) {
+                Some(val) => kvset.put(&key, val),
                 None => None,
             };
         }
@@ -127,28 +127,28 @@ impl KVSet {
 
     /// Adds a new key/value pair to the KVSet.  The return value will be a String, if there was
     /// a previous value and this is therefore an update, or None, if this was a true insert.
-    pub fn put(&mut self, key: String, value: String) -> Option<String> {
-        return self.data.insert(key, value); // this returns the old value or None
+    pub fn put(&mut self, key: &String, value: String) -> Option<String> {
+        return self.data.insert(key.clone(), value); // this returns the old value or None
     }
 
-    pub fn get(&self, key: String) -> Option<&String> {
-        return self.data.get(&key);
+    pub fn get(&self, key: &String) -> Option<&String> {
+        return self.data.get(key);
     }
 
-    pub fn delete(&mut self, key: String) -> Option<String> {
-        return self.data.remove(&key);
+    pub fn delete(&mut self, key: &String) -> Option<String> {
+        return self.data.remove(key);
     }
 
-    pub fn put_block_ref(&mut self, key: String, value: u64) -> Option<u64> {
-        return self.pointers.insert(key, value);
+    pub fn put_block_ref(&mut self, key: &String, value: u64) -> Option<u64> {
+        return self.pointers.insert(key.clone(), value);
     }
 
-    pub fn get_block_ref(&self, key: String) -> Option<&u64> {
-        return self.pointers.get(&key);
+    pub fn get_block_ref(&self, key: &String) -> Option<&u64> {
+        return self.pointers.get(key);
     }
 
-    pub fn delete_block_ref(&mut self, key: String) -> Option<u64> {
-        return self.pointers.remove(&key);
+    pub fn delete_block_ref(&mut self, key: &String) -> Option<u64> {
+        return self.pointers.remove(key);
     }
 
     pub fn deserialize(bytes3: &mut Vec<u8>) -> Result<KVSet, CorruptDataError> {
@@ -259,8 +259,8 @@ mod tests {
     #[test]
     fn basic_serialization() {
         let mut keyset = KVSet::new();
-        keyset.put(String::from("yes"),   String::from("no"));
-        keyset.put(String::from("hello"), String::from("goodbye"));
+        keyset.put(&String::from("yes"),   String::from("no"));
+        keyset.put(&String::from("hello"), String::from("goodbye"));
 
         let serialized_vector = vec!(
             104, 101, 108, 108, 111,
@@ -282,22 +282,21 @@ mod tests {
         let value = String::from("value");
 
         let mut keyset = KVSet::new();
-        keyset.put(key.clone(), value.clone());
-        keyset.put_block_ref(key.clone(), blockno);
+        keyset.put(&key, value.clone());
+        keyset.put_block_ref(&key, blockno);
 
         let vector = keyset.serialize();
-        println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
             Err(_) => panic!("Error deserializing KVSet"),
         };
 
-        match keyset2.get(key.clone()) {
+        match keyset2.get(&key) {
             Some(val) => assert_eq!(&value.clone(), val),
             None => panic!("Expected a value from keyset")
         };
 
-        match keyset2.get_block_ref(key.clone()) {
+        match keyset2.get_block_ref(&key) {
             Some(val) => assert_eq!(blockno, *val),
             None => panic!("Expected a value from keyset")
         }
@@ -312,28 +311,27 @@ mod tests {
         let blockno: u64 = 22;
 
         let mut keyset = KVSet::new();
-        keyset.put(key.clone(),  value.clone());
-        keyset.put(key2.clone(), value2.clone());
-        keyset.put_block_ref(key.clone(), blockno);
+        keyset.put(&key,  value.clone());
+        keyset.put(&key2, value2.clone());
+        keyset.put_block_ref(&key, blockno);
 
         let vector = keyset.serialize();
-        println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
             Err(_) => panic!("Error deserializing KVSet"),
         };
 
-        match keyset2.get(key.clone()) {
+        match keyset2.get(&key) {
             Some(val) => assert_eq!(&value.clone(), val),
             None => panic!("Expected a value from keyset")
         };
 
-        match keyset2.get(key2.clone()) {
+        match keyset2.get(&key2) {
             Some(val) => assert_eq!(&value2.clone(), val),
             None => panic!("Expected a value from keyset")
         };
 
-        match keyset2.get_block_ref(key.clone()) {
+        match keyset2.get_block_ref(&key) {
             Some(val) => assert_eq!(blockno, *val),
             None => panic!("Expected a value from keyset")
         }
@@ -345,16 +343,15 @@ mod tests {
         let blockno: u64 = 22;
 
         let mut keyset = KVSet::new();
-        keyset.put_block_ref(key.clone(), blockno);
+        keyset.put_block_ref(&key, blockno);
 
         let vector = keyset.serialize();
-        println!("vec {:?}", vector);
         let keyset2 = match KVSet::deserialize(&mut keyset.serialize()) {
             Ok(val) => val,
             Err(_) => panic!("Error deserializing KVSet"),
         };
 
-        match keyset2.get_block_ref(key.clone()) {
+        match keyset2.get_block_ref(&key) {
             Some(val) => assert_eq!(blockno, *val),
             None => panic!("Expected a value from keyset")
         }

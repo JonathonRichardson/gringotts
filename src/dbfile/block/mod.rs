@@ -211,39 +211,39 @@ impl BasicBlock for Block {
 }
 
 impl Block {
-    pub fn set(&mut self, key: String, val: String) -> Result<Option<String>, NoRoomError> {
-        let retval = self.data.put(key.clone(), val);
+    pub fn set(&mut self, key: &String, val: String) -> Result<Option<String>, NoRoomError> {
+        let retval = self.data.put(key, val);
 
         return match(self.serialize().len() <= self.size) {
             true => Ok(retval),
             false => {
-                self.data.delete(key.clone());
+                self.data.delete(key);
                 return Err(NoRoomError::new("No Room in block"));
             }
         }
     }
 
-    pub fn get(&self, key: String) -> Option<String> {
+    pub fn get(&self, key: &String) -> Option<String> {
         return match self.data.get(key) {
             Some(s) => Some(s.clone()),
             None => None,
         };
     }
 
-    pub fn get_block_ref(&self, key: String) -> Option<u64> {
+    pub fn get_block_ref(&self, key: &String) -> Option<u64> {
         return match self.data.get_block_ref(key) {
             Some(n) => Some(n.clone()),
             None => None,
         }
     }
 
-    pub fn set_block_ref(&mut self, key: String, blockref: u64) -> Result<Option<u64>, NoRoomError> {
-        let retval = self.data.put_block_ref(key.clone(), blockref);
+    pub fn set_block_ref(&mut self, key: &String, blockref: u64) -> Result<Option<u64>, NoRoomError> {
+        let retval = self.data.put_block_ref(&key, blockref);
 
         return match(self.serialize().len() <= self.size) {
             true => Ok(retval),
             false => {
-                self.data.delete_block_ref(key.clone());
+                self.data.delete_block_ref(&key);
                 return Err(NoRoomError::new("No Room in block"));
             }
         }

@@ -53,8 +53,8 @@ fn main() {
     match command.as_ref() {
         "create"    => create_db(filename),
         "info"      => get_info(filename),
-        "set"       => set_val(filename, matches.free[0].clone()),
-        "get"       => get_val(filename, matches.free[0].clone()),
+        "set"       => set_val(filename, &matches.free[0]),
+        "get"       => get_val(filename, &matches.free[0]),
         cmd => {
             let message = format!("{} is not a recognized command.", cmd);
             println!("{}", Red.bold().paint(message));
@@ -99,14 +99,14 @@ fn print_usage(program: &str, opts: Options) {
     print!("{}", opts.usage(&brief));
 }
 
-fn set_val(filename: String, key: String) {
+fn set_val(filename: String, key: &String) {
     let mut file = dbfile::Dbfile::open(&filename);
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer).unwrap();
     file.set_val(key, buffer);
 }
 
-fn get_val(filename: String, key: String) {
+fn get_val(filename: String, key: &String) {
     let mut file = dbfile::Dbfile::open(&filename);
     match file.get_val(key) {
         Some(s) => print!("{}", s),

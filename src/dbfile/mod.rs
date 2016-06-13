@@ -331,27 +331,27 @@ impl Dbfile {
         self.write_segment(Locations::BlockSize, bytes);
     }
 
-    pub fn set_val(&mut self, key: String, val: String) {
+    pub fn set_val(&mut self, key: &String, val: String) {
         let keychain = KeyChain::parse(&key);
         let key = keychain.get_final_key();
         let mut block = self.get_block_from_ref(keychain, true).unwrap();
 
-        match block.set(key.clone(), val.clone()) {
+        match block.set(&key, val.clone()) {
             Err(e) => {
                 let mut new_block = self.split_block(&mut block);
 
                 match block.get_last_key() {
                     Some(k) => {
                         if (key > k) {
-                            new_block.set(key, val);
+                            new_block.set(&key, val);
                             self.write_block(&mut new_block);
                         }
                         else {
-                            block.set(key, val);
+                            block.set(&key, val);
                         }
                     },
                     _ => {
-                        block.set(key, val);
+                        block.set(&key, val);
                         ();
                     },
                 }
@@ -362,7 +362,7 @@ impl Dbfile {
         self.write_block(&mut block);
     }
 
-    fn navigate_block_level(&mut self, block: Block, key: String) -> Block {
+    fn navigate_block_level(&mut self, block: Block, key: &String) -> Block {
         let mut next_block = block;
         'toTheRight: loop {
             let last_key = match next_block.get_last_key() {
@@ -371,7 +371,7 @@ impl Dbfile {
             };
             match next_block.get_last_key() {
                 Some(k) => {
-                    if (key > k) {
+                    if (key > &k) {
                         match next_block.get_right_block() {
                             Some(n) => {
                                 next_block = self.get_block(n);
@@ -396,16 +396,16 @@ impl Dbfile {
             None => return Some(block)
         };
 
-        block = self.navigate_block_level(block, key.clone());
+        block = self.navigate_block_level(block, &key);
 
         debug!("Checking block: {}", block.blocknumber);
-        return match block.get_block_ref(key.clone()) {
+        return match block.get_block_ref(&key) {
             Some(b) => self.get_block_inner(keys, b, create_path),
             None if create_path => {
                 let new_block = self.new_block();
                 block.set_block_type(BlockType::Root);
                 self.write_block(&mut block);
-                block.set_block_ref(key, new_block.blocknumber);
+                block.set_block_ref(&key, new_block.blocknumber);
                 self.write_block(&mut block);
                 return self.get_block_inner(keys, new_block.blocknumber, create_path);
             },
@@ -419,7 +419,7 @@ impl Dbfile {
         let mut baseblock = self.get_block_inner(&mut vec, 1, create_path);
         match baseblock {
             Some(b) => {
-                return Some(self.navigate_block_level(b, keychain.get_final_key()));
+                return Some(self.navigate_block_level(b, &keychain.get_final_key()));
             },
             None => {
                 return None;
@@ -427,14 +427,14 @@ impl Dbfile {
         };
     }
 
-    pub fn get_val(&mut self, key: String) -> Option<String> {
-        let keychain = KeyChain::parse(&key);
+    pub fn get_val(&mut self, keystring: &String) -> Option<String> {
+        let keychain = KeyChain::parse(keystring);
         let key = keychain.get_final_key();
 
         let mut block = self.get_block_from_ref(keychain, false);
         return match block {
             Some(b) => {
-                return b.get(key);
+                return b.get(&key);
             },
             //Some(b) => return None,
             None => return None,
