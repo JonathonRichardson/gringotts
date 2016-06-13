@@ -99,6 +99,32 @@ impl KVSet {
         return keyvec;
     }
 
+    pub fn get_last_key(&self) -> Option<String> {
+        return self.get_keys().pop();
+    }
+
+    pub fn split(&mut self) -> KVSet {
+        let mut keys = self.get_keys();
+        let split_point = keys.len() / 2;
+
+        let mut kvset = KVSet::new();
+
+        while (keys.len() > split_point && keys.len() >= 1) {
+            let key = keys.pop().unwrap();
+            match self.pointers.remove(&key.clone()) {
+                Some(val) => kvset.put_block_ref(key.clone(), val),
+                None => None,
+            };
+
+            match self.data.remove(&key.clone()) {
+                Some(val) => kvset.put(key.clone(), val),
+                None => None,
+            };
+        }
+
+        return kvset;
+    }
+
     /// Adds a new key/value pair to the KVSet.  The return value will be a String, if there was
     /// a previous value and this is therefore an update, or None, if this was a true insert.
     pub fn put(&mut self, key: String, value: String) -> Option<String> {
@@ -109,12 +135,20 @@ impl KVSet {
         return self.data.get(&key);
     }
 
+    pub fn delete(&mut self, key: String) -> Option<String> {
+        return self.data.remove(&key);
+    }
+
     pub fn put_block_ref(&mut self, key: String, value: u64) -> Option<u64> {
         return self.pointers.insert(key, value);
     }
 
     pub fn get_block_ref(&self, key: String) -> Option<&u64> {
         return self.pointers.get(&key);
+    }
+
+    pub fn delete_block_ref(&mut self, key: String) -> Option<u64> {
+        return self.pointers.remove(&key);
     }
 
     pub fn deserialize(bytes3: &mut Vec<u8>) -> Result<KVSet, CorruptDataError> {

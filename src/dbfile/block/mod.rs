@@ -1,4 +1,5 @@
 use abomonation::{encode, decode};
+use error::*;
 
 pub mod kvset;
 use dbfile::block::kvset::*;
@@ -7,6 +8,7 @@ pub struct Block {
     header_bytes: Vec<u8>,
     pub blocknumber: u64,
     pub data: KVSet,
+    size: usize,
 }
 
 pub trait HasSectionAddress {
@@ -16,7 +18,8 @@ pub trait HasSectionAddress {
 enum CommonSection {
     Body,
     BodySize,
-    Type
+    Type,
+    NextBlock
 }
 
 impl HasSectionAddress for CommonSection {
@@ -25,6 +28,7 @@ impl HasSectionAddress for CommonSection {
             CommonSection::Body => [256,0],
             CommonSection::BodySize => [2,6],
             CommonSection::Type => [6,10],
+            CommonSection::NextBlock => [10, 18]
         }
     }
 }
@@ -74,7 +78,8 @@ impl SerializeableBlock for Block {
         let mut block = Block {
             header_bytes: header_bytes,
             blocknumber: block_number,
-            data: KVSet::new()
+            data: KVSet::new(),
+            size: bytes_vec.len(),
         };
 
         let body_length = block.body_length();
@@ -206,8 +211,16 @@ impl BasicBlock for Block {
 }
 
 impl Block {
-    pub fn set(&mut self, key: String, val: String) {
-        self.data.put(key, val);
+    pub fn set(&mut self, key: String, val: String) -> Result<Option<String>, NoRoomError> {
+        let retval = self.data.put(key.clone(), val);
+
+        return match(self.serialize().len() <= self.size) {
+            true => Ok(retval),
+            false => {
+                self.data.delete(key.clone());
+                return Err(NoRoomError::new("No Room in block"));
+            }
+        }
     }
 
     pub fn get(&self, key: String) -> Option<String> {
@@ -224,7 +237,46 @@ impl Block {
         }
     }
 
-    pub fn set_block_ref(&mut self, key: String, blockref: u64) {
-        self.data.put_block_ref(key.clone(), blockref);
+    pub fn set_block_ref(&mut self, key: String, blockref: u64) -> Result<Option<u64>, NoRoomError> {
+        let retval = self.data.put_block_ref(key.clone(), blockref);
+
+        return match(self.serialize().len() <= self.size) {
+            true => Ok(retval),
+            false => {
+                self.data.delete_block_ref(key.clone());
+                return Err(NoRoomError::new("No Room in block"));
+            }
+        }
+    }
+
+    pub fn get_last_key(&self) -> Option<String> {
+        return self.data.get_last_key();
+    }
+
+    pub fn set_kvset(&mut self, kvset: KVSet) {
+        self.data = kvset;
+    }
+
+    pub fn split(&mut self) -> KVSet {
+        return self.data.split();
+    }
+
+    pub fn set_right_block(&mut self, num: u64) {
+        let mut bytes = Vec::new();
+        unsafe { encode(&num, &mut bytes); }
+        self.write_section(CommonSection::NextBlock, bytes);
+    }
+
+    pub fn get_right_block(&mut self) -> Option<u64> {
+        let mut bytes = self.read_section(CommonSection::NextBlock);
+        if let Some(result) = unsafe { decode::<u64>(&mut bytes) } {
+            return match *result.0 {
+                0 => None,
+                n => Some(n)
+            }
+        }
+        else {
+            return None;
+        }
     }
 }

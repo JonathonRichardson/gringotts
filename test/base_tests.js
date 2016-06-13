@@ -156,5 +156,36 @@ describe("dbctl", function() {
       expect(output1).toBe(val1);
       expect(output2).toBe(val2);
     });
+
+    it("should store and retrieve multiple levels of information", function() {
+      var key1 = "path/to/data";
+      var val1 = "path/to/more/data";
+      dbctl("set", testdbfile, key1, {input: val1});
+      var output1 = dbctl("get", testdbfile, key1);
+      expect(output1).toBe(val1);
+
+      var key2 = "newkey2";
+      var val2 = "asdf\0garbage";
+      dbctl("set", testdbfile, key2, {input: val2});
+      var output2 = dbctl("get", testdbfile, key2);
+
+      output1 = dbctl("get", testdbfile, key1);
+      expect(output1).toBe(val1);
+      expect(output2).toBe(val2);
+    });
+
+    it("should store and retrieve many nodes at one level", function() {
+      var val = "DATA"
+      for(var i = 0; i < 1000; i++) {
+        var key = "records/" + i;
+        dbctl("set", testdbfile, key, {input: val});
+      }
+
+      var output = dbctl("get", testdbfile, "records/999");
+      expect(output).toBe(val);
+
+      output = dbctl("get", testdbfile, "records/300");
+      expect(output).toBe(val);
+    });
   });
 });
