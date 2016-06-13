@@ -332,16 +332,49 @@ impl Dbfile {
     }
 
     pub fn set_val(&mut self, key: String, val: String) {
-        let mut block = self.get_block(1);
+        let keychain = KeyChain::parse(&key);
+        let key = keychain.get_final_key();
+        let mut block = self.get_block_from_ref(keychain, true).unwrap();
         block.set(key, val);
         self.write_block(&mut block);
     }
 
-    pub fn get_val(&mut self, key: String) -> String {
-        let mut block = self.get_block(1);
-        match block.get(key) {
-            Some(val) => val.clone(),
-            None => String::from(""),
-        }
+    fn get_block_inner(&mut self, keys: &mut Vec<String>, blocknum: u64, create_path: bool) -> Option<Block> {
+        let mut block = self.get_block(blocknum);
+        let key = match keys.pop() {
+            Some(s) => s,
+            None => return Some(block)
+        };
+
+        return match block.get_block_ref(key.clone()) {
+            Some(b) => self.get_block_inner(keys, b, create_path),
+            None if create_path => {
+                let new_block = self.new_block();
+                block.set_block_type(BlockType::Root);
+                self.write_block(&mut block);
+                block.set_block_ref(key, new_block.blocknumber);
+                self.write_block(&mut block);
+                return self.get_block_inner(keys, new_block.blocknumber, create_path);
+            },
+            None => None
+        };
+    }
+
+    pub fn get_block_from_ref(&mut self, keychain: KeyChain, create_path: bool) -> Option<Block> {
+        let mut vec = keychain.as_vec();
+        vec.reverse();
+        return self.get_block_inner(&mut vec, 1, create_path);
+    }
+
+    pub fn get_val(&mut self, key: String) -> Option<String> {
+        let keychain = KeyChain::parse(&key);
+        let key = keychain.get_final_key();
+
+        let mut block = self.get_block_from_ref(keychain, false);
+        return match block {
+            Some(b) => b.get(key),
+            //Some(b) => return None,
+            None => return None,
+        };
     }
 }

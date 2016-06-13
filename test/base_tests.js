@@ -84,8 +84,8 @@ describe("dbctl", function() {
     });
 
     it("should set the first block's header line", function() {
-      var output = exec("xxd " + testdbfile + " | grep -E '^00001' | tr -d '\n'");
-      expect(output).toMatch(/: 0000 0000 1600/);
+      var output = exec("xxd " + testdbfile + " | grep -E '^0000100' | tr -d '\n'");
+      expect(output).toMatch(/: 424c 0000 0000 16/);
     });
 
     it("should not create the file twice", function() {

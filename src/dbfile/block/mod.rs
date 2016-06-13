@@ -23,8 +23,8 @@ impl HasSectionAddress for CommonSection {
     fn get_start_and_end(&self) -> [u64; 2] {
         match *self {
             CommonSection::Body => [256,0],
-            CommonSection::BodySize => [0,4],
-            CommonSection::Type => [4,8],
+            CommonSection::BodySize => [2,6],
+            CommonSection::Type => [6,10],
         }
     }
 }
@@ -99,6 +99,8 @@ impl SerializeableBlock for Block {
         let mut data_bytes = self.data.serialize();
         self.set_body_length(data_bytes.len() as u32);
         let mut serialized_bytes = self.header_bytes.clone();
+        serialized_bytes[0] = 66;
+        serialized_bytes[1] = 76;
         serialized_bytes.append(&mut data_bytes);
         return serialized_bytes;
     }
@@ -208,7 +210,21 @@ impl Block {
         self.data.put(key, val);
     }
 
-    pub fn get(&mut self, key: String) -> Option<&String> {
-        return self.data.get(key);
+    pub fn get(&self, key: String) -> Option<String> {
+        return match self.data.get(key) {
+            Some(s) => Some(s.clone()),
+            None => None,
+        };
+    }
+
+    pub fn get_block_ref(&self, key: String) -> Option<u64> {
+        return match self.data.get_block_ref(key) {
+            Some(n) => Some(n.clone()),
+            None => None,
+        }
+    }
+
+    pub fn set_block_ref(&mut self, key: String, blockref: u64) {
+        self.data.put_block_ref(key.clone(), blockref);
     }
 }
