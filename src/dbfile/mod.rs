@@ -143,41 +143,28 @@ impl Dbfile {
 	    // Create a path to the desired file
 	    let path = Path::new(&string_path);
 	    let display = path.display();
-
-        let mut file = OpenOptions::new().read(true).write(true).open(string_path).unwrap();
-
-        let magic_string = get_magic_string();
-        let mut buffer = vec![0; magic_string.len()];
-
         let invalid_file = || panic!("{} is not a valid Gringotts database.", display);
 
+        // Open the file
+        let mut file = OpenOptions::new().read(true).write(true).open(string_path).unwrap();
+
+        // Check the Magic String
+        let mut buffer = vec![0; MAGIC_STRING.len()];
         match file.read(&mut buffer) {
             Err(why) => panic!("Couldn't read {}: {}", display, Error::description(&why)),
-            Ok(size) if size < magic_string.len() => invalid_file(),
-            Ok(_) => {},
+            Ok(size) if size < MAGIC_STRING.len() => invalid_file(),
+            Ok(_) => {
+                if (String::from_utf8(buffer).unwrap() != MAGIC_STRING) {
+                    invalid_file();
+                }
+            },
         }
 
-        if (String::from_utf8(buffer).unwrap() != magic_string) {
-            invalid_file();
-        }
-
+        // Return a new Dbfile object
         Dbfile {
             file: file,
             string_path: string_path.clone()
         }
-    }
-
-    pub fn read_file(&mut self) {
-	    // Read the file contents into a string, returns `io::Result<usize>`
-	    let mut s = String::new();
-	    let path = Path::new(&self.string_path);
-	    let display = path.display();
-	    match self.file.read_to_string(&mut s) {
-	        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
-	        Ok(_) => print!("{} contains:\n{}", display, s),
-	    }
-
-	    // `file` goes out of scope, and the "hello.txt" file gets closed
     }
 
     pub fn read_segment(&mut self, loc: Locations) -> ReadResult {
@@ -260,7 +247,7 @@ impl Dbfile {
         }
     }
 
-    pub fn get_block(&mut self, block_number: u64) -> Block {
+    pub fn get_block(&mut self, block_number: u64) -> NodeBlock {
         let block_size_in_bytes = (self.get_block_size() as u64) * 1024;
         let start_pos = ((block_number - 1) * block_size_in_bytes) + START_OF_BLOCKS;
 
@@ -280,12 +267,15 @@ impl Dbfile {
 	        Ok(_) => debug!("Successfully read block: {}", block_number),
 	    }
 
-        return Block::deserialize(block_number, buffer);
+        return match NodeBlock::from_bytes(block_number, buffer) {
+            Ok(block) => block,
+            Err(_) => panic!("Couldn't get block"),
+        };
     }
 
-    pub fn write_block(&mut self, block: &mut Block) {
+    pub fn write_block<T: SerializeableBlock>(&mut self, block: &mut T) {
         let block_size_in_bytes = (self.get_block_size() as u64) * 1024;
-        let start_pos = ((block.blocknumber - 1) * block_size_in_bytes) + START_OF_BLOCKS;
+        let start_pos = ((block.get_block_number() - 1) * block_size_in_bytes) + START_OF_BLOCKS;
 
         let path = Path::new(&self.string_path);
 	    let display = path.display();
@@ -297,18 +287,21 @@ impl Dbfile {
 
         match self.file.write(&mut block.serialize()) {
         	Err(why) => panic!("couldn't write {}: {}", display, Error::description(&why)),
-	        Ok(_) => debug!("Successfully wrote block: {}", block.blocknumber),
+	        Ok(_) => debug!("Successfully wrote block: {}", block.get_block_number()),
         }
     }
 
-    fn new_block(&mut self) -> Block {
+    fn new_block(&mut self) -> NodeBlock {
         let bytes = Vec::with_capacity(self.get_block_size() as usize);
 
         let old_num_blocks = self.get_number_of_blocks();
         let new_num_blocks = old_num_blocks + 1;
 
         // Create the new block
-        let mut block = Block::deserialize(new_num_blocks, bytes);
+        let mut block = match NodeBlock::from_bytes(new_num_blocks, bytes) {
+            Ok(b) => b,
+            Err(_) => panic!("Error creating new block"),
+        };
 
         self.set_number_of_blocks(new_num_blocks);
         self.write_block(&mut block);
@@ -362,7 +355,7 @@ impl Dbfile {
         self.write_block(&mut block);
     }
 
-    fn navigate_block_level(&mut self, block: Block, key: &String) -> Block {
+    fn navigate_block_level(&mut self, block: NodeBlock, key: &String) -> NodeBlock {
         let mut next_block = block;
         'toTheRight: loop {
             let last_key = match next_block.get_last_key() {
@@ -389,7 +382,7 @@ impl Dbfile {
         return next_block;
     }
 
-    fn get_block_inner(&mut self, keys: &mut Vec<String>, blocknum: u64, create_path: bool) -> Option<Block> {
+    fn get_block_inner(&mut self, keys: &mut Vec<String>, blocknum: u64, create_path: bool) -> Option<NodeBlock> {
         let mut block = self.get_block(blocknum);
         let key = match keys.pop() {
             Some(s) => s,
@@ -398,22 +391,22 @@ impl Dbfile {
 
         block = self.navigate_block_level(block, &key);
 
-        debug!("Checking block: {}", block.blocknumber);
+        debug!("Checking block: {}", block.get_block_number());
         return match block.get_block_ref(&key) {
             Some(b) => self.get_block_inner(keys, b, create_path),
             None if create_path => {
                 let new_block = self.new_block();
                 block.set_block_type(BlockType::Root);
                 self.write_block(&mut block);
-                block.set_block_ref(&key, new_block.blocknumber);
+                block.set_block_ref(&key, new_block.get_block_number());
                 self.write_block(&mut block);
-                return self.get_block_inner(keys, new_block.blocknumber, create_path);
+                return self.get_block_inner(keys, new_block.get_block_number(), create_path);
             },
             None => None
         };
     }
 
-    pub fn get_block_from_ref(&mut self, keychain: KeyChain, create_path: bool) -> Option<Block> {
+    pub fn get_block_from_ref(&mut self, keychain: KeyChain, create_path: bool) -> Option<NodeBlock> {
         let mut vec = keychain.as_vec();
         vec.reverse();
         let mut baseblock = self.get_block_inner(&mut vec, 1, create_path);
@@ -441,11 +434,11 @@ impl Dbfile {
         };
     }
 
-    fn split_block(&mut self, block: &mut Block) -> Block {
+    fn split_block(&mut self, block: &mut NodeBlock) -> NodeBlock {
         let kvset = block.split();
         let mut new_block = self.new_block();
 
-        block.set_right_block(new_block.blocknumber);
+        block.set_right_block(new_block.get_block_number());
         new_block.set_kvset(kvset);
 
         self.write_block( block);
