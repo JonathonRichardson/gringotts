@@ -10,7 +10,6 @@ pub trait HasBlockHeader {
 pub struct BlockHeader {
     header_bytes: Vec<u8>,
     blocknumber: u64,
-    size: usize,
 }
 
 impl BlockHeader {
@@ -25,13 +24,10 @@ impl BlockHeader {
             }
         }
 
-        let mut block = BlockHeader {
+        return BlockHeader {
             header_bytes: header_bytes,
             blocknumber: block_number,
-            size: bytes_vec.len(),
         };
-
-        return block;
     }
 
     pub fn read_section<T>(&self, section: T) -> Vec<u8> where T: HasSectionAddress{
@@ -73,7 +69,7 @@ impl BlockHeader {
         // --> TODO: Eventually, this should be able to be replaced by the resize() method, but it's
         //           unstable as of now.
         if ((last_index_block_data) < end) {
-            for i in (last_index_block_data)..(end + 1) {
+            for _ in (last_index_block_data)..(end + 1) {
                 self.header_bytes.push(0);
             }
         }

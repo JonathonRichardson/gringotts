@@ -1,11 +1,9 @@
 use abomonation::{encode, decode};
-use error::*;
 
 pub mod kvset;
 mod sections;
 pub mod types;
 
-use self::kvset::*;
 use self::sections::header::{HasBlockHeader};
 pub use self::types::*;
 
