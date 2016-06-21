@@ -13,6 +13,18 @@ pub struct BlockHeader {
 }
 
 impl BlockHeader {
+    pub fn new() -> BlockHeader {
+        let mut bytes: Vec<u8> = Vec::with_capacity(HEADER_SIZE);
+        for _ in 0..HEADER_SIZE {
+            bytes.push(0);
+        }
+
+        return BlockHeader {
+            header_bytes: bytes,
+            blocknumber: 0
+        }
+    }
+
     pub fn from_bytes(block_number: u64, bytes_vec: &Vec<u8>) -> BlockHeader {
         let mut header_bytes = Vec::with_capacity(HEADER_SIZE);
         for i in 0..HEADER_SIZE {

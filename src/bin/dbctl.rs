@@ -84,11 +84,11 @@ fn create_db(filename: String) {
 
 fn get_info(filename: String) {
     let mut file = dbfile::Dbfile::open(&filename);
-    let mut result = file.read_segment(dbfile::Locations::Version);
+    //let mut result = file.read_segment(dbfile::Locations::Version);
 
     println!("Filename: {}", filename);
 
-    let version = result.get_version();
+    let version = file.get_version();
     println!("Version: {}.{}.{}", version.major, version.minor, version.build);
     println!("Block Size: {}kb", file.get_block_size());
     println!("Number of Blocks: {}", file.get_number_of_blocks());
